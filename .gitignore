@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.vercel/
+verify_shots/
+demo_build/
+*.mp4
+*.wav
+*.mp3
+*.log
+.DS_Store

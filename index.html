@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TriageZero — Connectivity-Resilient Hybrid AI Disaster Medical Triage</title>
+    <meta
+      name="description"
+      content="Offline-first field emergency & mass-casualty START triage workbench powered by Firebase AI Logic Hybrid Inference (Gemini Nano on-device + Gemini 3.5 Flash-Lite cloud hospital surge)."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <!-- Solid Sticky Tactical Dispatch Header (0% bleed-through) -->
+    <header class="dispatch-header" role="banner">
+      <div class="header-inner">
+        <div class="brand-cluster">
+          <div class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 36 36" width="32" height="32" fill="none">
+              <rect width="36" height="36" rx="8" fill="#DC2626" />
+              <path d="M15 8h6v7h7v6h-7v7h-6v-7H8v-6h7V8z" fill="#FFFFFF" />
+              <circle cx="29" cy="7" r="3.5" fill="#22C55E" stroke="#0F172A" stroke-width="1.5" />
+            </svg>
+          </div>
+          <div class="brand-text">
+            <div class="brand-name-row">
+              <span class="brand-name">TriageZero</span>
+              <span class="brand-badge">#BuildHybridAI 2026</span>
+            </div>
+            <div class="brand-sub">Firebase AI Logic · Offline-First START Triage &amp; Surge Dispatch</div>
+          </div>
+        </div>
+
+        <!-- 1-Click Live Connectivity / Dead-Zone Simulator Toggle -->
+        <div class="connectivity-control" role="group" aria-label="Connectivity Simulator">
+          <button
+            type="button"
+            id="btnOfflineMode"
+            class="conn-btn active-offline"
+            aria-pressed="true"
+          >
+            <span class="conn-dot dot-offline"></span>
+            <span class="conn-label">OFFLINE DEAD ZONE</span>
+            <span class="conn-sub">ONLY_ON_DEVICE</span>
+          </button>
+          <button
+            type="button"
+            id="btnOnlineMode"
+            class="conn-btn"
+            aria-pressed="false"
+          >
+            <span class="conn-dot dot-online"></span>
+            <span class="conn-label">STARLINK / 5G RESTORED</span>
+            <span class="conn-sub">ONLY_IN_CLOUD</span>
+          </button>
+        </div>
+
+        <div class="header-actions">
+          <div class="header-stat-pill" id="headerCloudBytesPill" title="Total cloud payload bytes transmitted">
+            <span class="pill-key">CLOUD</span>
+            <span class="pill-val mono" id="headerCloudBytes">0 B</span>
+          </div>
+          <button type="button" id="btnMassIncident" class="btn-burst">
+            <svg viewBox="0 0 20 20" width="15" height="15" fill="currentColor" aria-hidden="true">
+              <path d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" />
+            </svg>
+            <span>Run 6-Casualty Mass-Incident</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="shell">
+      <!-- Live Hybrid Boundary Architecture & Telemetry Strip -->
+      <section class="telemetry-hero" aria-label="Hybrid Inference Telemetry">
+        <div class="kpi-grid">
+          <div class="kpi-card" id="kpiModeCard">
+            <div class="kpi-label">Active Firebase AI Logic Mode</div>
+            <div class="kpi-value mono" id="kpiInferenceMode">ONLY_ON_DEVICE</div>
+            <div class="kpi-meta" id="kpiEngineMeta">Gemini Nano + START RPM · Zero internet required</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-label">Cloud Network Traffic</div>
+            <div class="kpi-value mono" id="kpiCloudTraffic">0 B</div>
+            <div class="kpi-meta" id="kpiCloudMeta">Dead-zone seal active · 0 B leaked to cloud</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-label">Triage Latency &amp; Local Savings</div>
+            <div class="kpi-value mono" id="kpiLatencyVal">1.4 ms</div>
+            <div class="kpi-meta" id="kpiTokensSaved">0 tokens kept on-device · 100% local intake</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-label">SHA-256 Offline Queue</div>
+            <div class="kpi-value mono" id="kpiQueueVal">0 Tagged</div>
+            <div class="kpi-meta" id="kpiChainMeta">Hash chain verified · IndexedDB + LocalStorage</div>
+          </div>
+        </div>
+
+        <!-- Animated Hybrid Routing Boundary SVG -->
+        <div class="pipeline-card">
+          <div class="pipeline-head">
+            <span class="pipeline-title">LIVE HYBRID AI ROUTING BOUNDARY</span>
+            <span class="pipeline-status mono" id="pipelineStatusBadge">BOUNDARY SEALED · 100% ON-DEVICE</span>
+          </div>
+          <div class="pipeline-svg-wrap" id="hybridPipelineSvg"></div>
+        </div>
+      </section>
+
+      <!-- Workspace Navigation Tabs -->
+      <nav class="tab-bar" role="tablist" aria-label="TriageZero Workbench Sections">
+        <button type="button" class="tab-btn active" role="tab" aria-selected="true" data-tab="triage">
+          1. Field START Triage
+        </button>
+        <button type="button" class="tab-btn" role="tab" aria-selected="false" data-tab="surge">
+          2. Hospital Surge Dispatch
+          <span class="tab-count mono" id="tabSurgeCount">0</span>
+        </button>
+        <button type="button" class="tab-btn" role="tab" aria-selected="false" data-tab="fhir">
+          3. HL7 FHIR R4 &amp; SOAP
+        </button>
+        <button type="button" class="tab-btn" role="tab" aria-selected="false" data-tab="audit">
+          4. Hybrid Audit &amp; Rules
+          <span class="tab-count mono" id="tabAuditCount">0</span>
+        </button>
+      </nav>
+
+      <!-- TAB 1: FIELD START TRIAGE -->
+      <section class="tab-panel active" id="panel-triage" role="tabpanel">
+        <!-- Preloaded Field Cases Bar -->
+        <div class="cases-strip">
+          <div class="cases-header">
+            <div>
+              <h2 class="section-h">Preloaded Field Mass-Casualty &amp; EMS Scenarios</h2>
+              <p class="section-sub">Select a realistic disaster casualty or adjust RPM vital sliders live to watch the START decision tree re-route.</p>
+            </div>
+            <div class="cases-right-tools">
+              <button type="button" id="btnVoiceIntake" class="btn-secondary btn-sm">
+                <svg viewBox="0 0 20 20" width="14" height="14" fill="currentColor" aria-hidden="true">
+                  <path d="M7 4a3 3 0 016 0v6a3 3 0 11-6 0V4z" />
+                  <path d="M5.5 9.643a.75.75 0 00-1.5 0V10c0 3.06 2.29 5.585 5.25 5.954V17.5h-1.5a.75.75 0 000 1.5h4.5a.75.75 0 000-1.5h-1.5v-1.546A6.001 6.001 0 0016 10v-.357a.75.75 0 00-1.5 0V10a4.5 4.5 0 01-9 0v-.357z" />
+                </svg>
+                <span id="voiceBtnLabel">Voice Quick-Intake</span>
+              </button>
+              <button type="button" id="btnNewCustom" class="btn-secondary btn-sm">+ Custom Casualty</button>
+            </div>
+          </div>
+          <div class="preset-pills" id="presetPills" role="group" aria-label="Preloaded EMS Cases"></div>
+        </div>
+
+        <!-- Split Workbench Grid -->
+        <div class="triage-grid">
+          <!-- Left: Casualty Intake & Real-Time Vital Sliders -->
+          <div class="card intake-card">
+            <div class="card-head">
+              <div>
+                <h3 class="card-title">Rapid Field Intake &amp; RPM Vitals</h3>
+                <p class="card-sub">Respirations · Perfusion · Mental Status (START Protocol)</p>
+              </div>
+              <span class="device-chip mono" id="nanoDetectorChip">On-Device Engine Ready</span>
+            </div>
+
+            <div class="meta-inputs">
+              <label class="field-group">
+                <span class="field-label">Triage Tag ID</span>
+                <input type="text" id="inputTagId" class="text-input mono" value="EQ-01" maxlength="20" />
+              </label>
+              <label class="field-group">
+                <span class="field-label">Age / Sex</span>
+                <input type="text" id="inputAgeSex" class="text-input mono" value="38M" maxlength="10" />
+              </label>
+              <label class="field-group">
+                <span class="field-label">Specialty / Flag</span>
+                <select id="inputSpecialty" class="text-input">
+                  <option value="crush_trauma">Crush / Orthopedic Trauma</option>
+                  <option value="pediatric_trauma">Pediatric Trauma</option>
+                  <option value="burn_inhalation">Burn / Smoke Inhalation</option>
+                  <option value="airway_trauma">Airway / Neuro Trauma</option>
+                  <option value="minor_urgent">Minor / Walking Wounded</option>
+                  <option value="expectant">Expectant / Apneic</option>
+                </select>
+              </label>
+            </div>
+
+            <label class="field-group full-width">
+              <span class="field-label">Mechanism of Injury &amp; Field Presentation</span>
+              <textarea id="inputMechanism" class="textarea-input" rows="2"></textarea>
+            </label>
+
+            <!-- Primary Binary START Switches -->
+            <div class="switch-grid">
+              <label class="toggle-tile" for="chkCanWalk">
+                <input type="checkbox" id="chkCanWalk" />
+                <div class="toggle-body">
+                  <span class="toggle-title">Can Walk? (Ambulatory)</span>
+                  <span class="toggle-hint">Yes -> Immediate GREEN Minor</span>
+                </div>
+              </label>
+
+              <label class="toggle-tile" for="chkBreathing">
+                <input type="checkbox" id="chkBreathing" checked />
+                <div class="toggle-body">
+                  <span class="toggle-title">Spontaneous Breathing</span>
+                  <span class="toggle-hint">No -> Open airway check</span>
+                </div>
+              </label>
+
+              <label class="toggle-tile" id="tileAirway" for="chkAirwayOpened">
+                <input type="checkbox" id="chkAirwayOpened" checked />
+                <div class="toggle-body">
+                  <span class="toggle-title">Breathing After Airway Open</span>
+                  <span class="toggle-hint">No -> BLACK · Yes -> RED</span>
+                </div>
+              </label>
+
+              <label class="toggle-tile" for="chkRadialPulse">
+                <input type="checkbox" id="chkRadialPulse" />
+                <div class="toggle-body">
+                  <span class="toggle-title">Radial Pulse Palpable</span>
+                  <span class="toggle-hint">Absent -> Perfusion RED</span>
+                </div>
+              </label>
+
+              <label class="toggle-tile" for="chkObeysCommands">
+                <input type="checkbox" id="chkObeysCommands" checked />
+                <div class="toggle-body">
+                  <span class="toggle-title">Obeys Simple Commands</span>
+                  <span class="toggle-hint">No -> Mental Status RED</span>
+                </div>
+              </label>
+
+              <label class="toggle-tile" for="chkPediatric">
+                <input type="checkbox" id="chkPediatric" />
+                <div class="toggle-body">
+                  <span class="toggle-title">Pediatric Priority (&lt; 14 yrs)</span>
+                  <span class="toggle-hint">Routes to Pediatric Level-1</span>
+                </div>
+              </label>
+            </div>
+
+            <!-- Continuous Vital Sliders -->
+            <div class="sliders-stack">
+              <div class="slider-block">
+                <div class="slider-head">
+                  <label for="sliderRR" class="field-label">Respiratory Rate (breaths / min)</label>
+                  <span class="slider-readout mono" id="readoutRR">34 /min</span>
+                </div>
+                <input type="range" id="sliderRR" min="0" max="50" step="1" value="34" class="vital-slider" />
+                <div class="slider-scale mono">
+                  <span>0</span>
+                  <span>15</span>
+                  <span class="threshold-mark">START Limit: &gt;30 = RED</span>
+                  <span>50</span>
+                </div>
+              </div>
+
+              <div class="slider-block">
+                <div class="slider-head">
+                  <label for="sliderCapRefill" class="field-label">Capillary Refill Time (seconds)</label>
+                  <span class="slider-readout mono" id="readoutCapRefill">3.5 s</span>
+                </div>
+                <input type="range" id="sliderCapRefill" min="0.5" max="5.0" step="0.5" value="3.5" class="vital-slider" />
+                <div class="slider-scale mono">
+                  <span>0.5s</span>
+                  <span class="threshold-mark">START Limit: &gt;2.0s = RED</span>
+                  <span>5.0s</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="action-bar">
+              <button type="button" id="btnTagQueue" class="btn-primary">
+                <span>Tag &amp; Queue Casualty Locally</span>
+              </button>
+              <button type="button" id="btnBatchInline" class="btn-dark">
+                <span>⚡ 6-Casualty Offline -> Online Burst</span>
+              </button>
+            </div>
+            <div class="status-toast" id="intakeToast" aria-live="polite"></div>
+          </div>
+
+          <!-- Right: Live START Verdict + Interactive Decision Tree SVG -->
+          <div class="right-column">
+            <!-- International START Verdict Card -->
+            <div class="verdict-card verdict-RED" id="verdictCard">
+              <div class="verdict-top">
+                <div>
+                  <div class="verdict-eyebrow mono" id="verdictEyebrow">START PROTOCOL VERDICT · PRIORITY 1</div>
+                  <div class="verdict-main" id="verdictCategory">IMMEDIATE — RED</div>
+                </div>
+                <div class="verdict-window mono" id="verdictWindow">Immediate (&lt; 15 min)</div>
+              </div>
+              <p class="verdict-reason" id="verdictReason"></p>
+              <div class="verdict-interventions" id="verdictInterventions"></div>
+            </div>
+
+            <!-- Interactive START Decision Tree SVG -->
+            <div class="card tree-card">
+              <div class="card-head">
+                <div>
+                  <h3 class="card-title">Interactive START Clinical Decision Tree</h3>
+                  <p class="card-sub">Live illuminated pathway recalculates in &lt;2ms on-device as you move vitals.</p>
+                </div>
+                <span class="mono rpm-chip" id="liveRpmChip">R:34/m · P:NoPulse · M:Obeys</span>
+              </div>
+              <div class="tree-svg-wrap" id="startTreeSvg"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Local Cryptographic Casualty Queue Strip -->
+        <div class="card queue-card">
+          <div class="card-head">
+            <div>
+              <h3 class="card-title">Tamper-Evident Offline Casualty Queue (SHA-256 Hash Chain)</h3>
+              <p class="card-sub" id="queueSummarySub">Persisted to IndexedDB + LocalStorage · Zero drop across dead zones</p>
+            </div>
+            <div class="queue-actions">
+              <button type="button" id="btnFlushToCloud" class="btn-primary btn-sm">
+                Flush Queue to Cloud Surge ->
+              </button>
+              <button type="button" id="btnClearQueue" class="btn-secondary btn-sm">Reset Queue</button>
+            </div>
+          </div>
+          <div class="queue-list" id="queueList"></div>
+        </div>
+      </section>
+
+      <!-- TAB 2: HOSPITAL SURGE DISPATCH -->
+      <section class="tab-panel" id="panel-surge" role="tabpanel">
+        <div class="surge-top-banner" id="surgeBanner">
+          <div>
+            <h2 class="section-h">Multi-Casualty Hospital Surge Allocation &amp; Trauma Diversion</h2>
+            <p class="section-sub" id="surgeBannerSub">
+              Restore connectivity (Starlink / 5G) to burst queued offline tags into Firebase AI Logic ONLY_IN_CLOUD (gemini-3.5-flash-lite).
+            </p>
+          </div>
+          <div class="surge-top-actions">
+            <button type="button" id="btnTriggerCloudSurge" class="btn-primary">
+              Restore Link &amp; Run Cloud Surge Synthesis
+            </button>
+          </div>
+        </div>
+
+        <!-- Diversion Alerts Container -->
+        <div id="diversionAlertsBox" class="alerts-stack"></div>
+
+        <!-- 4 Regional Receiving Hospitals Grid -->
+        <div class="hospitals-grid" id="hospitalsGrid"></div>
+
+        <!-- Cloud AI Logic Surge Synthesis Narrative + Assignment Table -->
+        <div class="surge-split">
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <h3 class="card-title">Firebase AI Logic Cloud Surge Command Brief</h3>
+                <p class="card-sub" id="cloudBriefMeta">InferenceMode: ONLY_IN_CLOUD · Model: gemini-3.5-flash-lite</p>
+              </div>
+              <span class="source-badge mono" id="cloudSourceBadge">STANDBY (OFFLINE)</span>
+            </div>
+            <div class="brief-content" id="cloudBriefContent"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <h3 class="card-title">Casualty-to-Hospital Dispatch Manifest</h3>
+                <p class="card-sub">Sorted by START acuity (RED -> YELLOW -> GREEN -> BLACK)</p>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Tag</th>
+                    <th>START</th>
+                    <th>Receiving Facility</th>
+                    <th>Bed / Bay</th>
+                    <th>ETA</th>
+                  </tr>
+                </thead>
+                <tbody id="dispatchTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: HL7 FHIR R4 & CLINICAL SOAP EXPORT -->
+      <section class="tab-panel" id="panel-fhir" role="tabpanel">
+        <div class="export-bar card">
+          <div>
+            <h2 class="section-h">Interoperable HL7 FHIR R4 Bundle &amp; Clinical SOAP Handoff</h2>
+            <p class="section-sub">LOINC-coded observations (RR 9279-1, Cap Refill 44963-7, START 75636-1) sealed with SHA-256 chain verification.</p>
+          </div>
+          <div class="export-buttons">
+            <button type="button" id="btnDownloadFhir" class="btn-primary">Download FHIR R4 (.json)</button>
+            <button type="button" id="btnDownloadSoap" class="btn-dark">Download SOAP Handoff (.md)</button>
+            <button type="button" id="btnCopyFhir" class="btn-secondary">Copy JSON</button>
+          </div>
+        </div>
+
+        <div class="chain-verify-banner" id="chainVerifyBanner"></div>
+
+        <div class="export-grid">
+          <div class="card">
+            <div class="card-head">
+              <h3 class="card-title">HL7 FHIR R4 Collection Bundle (JSON)</h3>
+              <span class="mono small-pill" id="fhirEntryCount">0 resources</span>
+            </div>
+            <pre class="code-viewer mono" id="fhirJsonPreview"></pre>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <h3 class="card-title">Structured Clinical SOAP &amp; Surge Brief (Markdown)</h3>
+              <span class="mono small-pill">ER Handoff Ready</span>
+            </div>
+            <pre class="code-viewer mono" id="soapMdPreview"></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: HYBRID AUDIT & FIRESTORE RULES -->
+      <section class="tab-panel" id="panel-audit" role="tabpanel">
+        <div class="audit-grid">
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <h3 class="card-title">Hybrid Latency &amp; Bandwidth Telemetry</h3>
+                <p class="card-sub">Visual proof of 0 B cloud traffic during offline dead-zone intake vs compressed cloud surge burst.</p>
+              </div>
+              <span class="mono small-pill" id="telemetrySavingsPill">0 tokens saved locally</span>
+            </div>
+            <div class="telemetry-chart-wrap" id="telemetryChartSvg"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <h3 class="card-title">Firebase Remote Config &amp; Hardened firestore.rules</h3>
+                <p class="card-sub">Zero-PHI receipt enforcement: patient names and raw notes are rejected at the Firestore boundary.</p>
+              </div>
+              <button type="button" id="btnRunRulesSuite" class="btn-secondary btn-sm">Re-Verify 6 Security Vectors</button>
+            </div>
+            <div class="policy-strip mono" id="remoteConfigStrip"></div>
+            <div class="rules-results" id="rulesResultsList"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h3 class="card-title">Live Hybrid Routing Audit Log</h3>
+              <p class="card-sub">Exact Firebase AI Logic InferenceMode, inferenceSource, latency, cloud bytes, and SHA-256 proofs.</p>
+            </div>
+            <span class="mono small-pill" id="auditFlushBadge">0 queue flushes · 0 drops</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Step / Operation</th>
+                  <th>Firebase Mode</th>
+                  <th>inferenceSource</th>
+                  <th>Latency</th>
+                  <th>Cloud Bytes</th>
+                  <th>SHA-256 / Detail</th>
+                </tr>
+              </thead>
+              <tbody id="auditTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <span><strong>TriageZero</strong> · Built for Google <code>#BuildHybridAI 2026</code> · Apache-2.0 Open Source</span>
+        <span class="mono">Firebase AI Logic (ONLY_ON_DEVICE &lt;-&gt; ONLY_IN_CLOUD) · START RPM · HL7 FHIR R4</span>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

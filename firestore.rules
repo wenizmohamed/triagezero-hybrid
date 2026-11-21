@@ -1,0 +1,59 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // TriageZero Zero-PHI Dispatch Receipts:
+    // Stores aggregate START counts, hybrid inference routing telemetry, and SHA-256 chain root only.
+    // Patient names, DOBs, raw clinical notes, and identifiers are strictly rejected at the rules boundary.
+    function validTriageCount(counts, key) {
+      return (key in counts) && counts[key] is int && counts[key] >= 0 && counts[key] <= 500;
+    }
+
+    function validDispatchReceipt(data) {
+      return data.keys().hasOnly([
+          'at',
+          'incidentId',
+          'protocolVersion',
+          'counts',
+          'totalCasualties',
+          'inferenceSource',
+          'offlineQueueFlushed',
+          'cloudBytesSent',
+          'hospitalTargetsCount',
+          'chainRootSha256'
+        ])
+        && data.incidentId is string && data.incidentId.matches('^INC-[A-Z0-9-]{4,24}$')
+        && data.protocolVersion == 'START-v2026'
+        && data.counts is map
+        && data.counts.keys().hasOnly(['RED', 'YELLOW', 'GREEN', 'BLACK'])
+        && validTriageCount(data.counts, 'RED')
+        && validTriageCount(data.counts, 'YELLOW')
+        && validTriageCount(data.counts, 'GREEN')
+        && validTriageCount(data.counts, 'BLACK')
+        && data.totalCasualties is int
+        && data.totalCasualties == (data.counts.RED + data.counts.YELLOW + data.counts.GREEN + data.counts.BLACK)
+        && data.totalCasualties >= 1
+        && data.inferenceSource in ['on_device', 'in_cloud', 'hybrid_burst']
+        && data.offlineQueueFlushed is int && data.offlineQueueFlushed >= 0
+        && data.cloudBytesSent is int && data.cloudBytesSent >= 0
+        && data.hospitalTargetsCount is int && data.hospitalTargetsCount >= 0 && data.hospitalTargetsCount <= 25
+        && data.chainRootSha256 is string && data.chainRootSha256.matches('^[a-f0-9]{64}$')
+        && data.at == request.time;
+    }
+
+    match /users/{uid}/dispatch_receipts/{receiptId} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create: if request.auth != null && request.auth.uid == uid && validDispatchReceipt(request.resource.data);
+      allow update, delete: if false;
+    }
+
+    match /sessions/{sid}/dispatch_receipts/{receiptId} {
+      allow read: if sid.matches('^ems_[0-9a-f-]{36}$');
+      allow create: if sid.matches('^ems_[0-9a-f-]{36}$') && validDispatchReceipt(request.resource.data);
+      allow update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "parameters": {
+    "triage_cloud_model": {
+      "defaultValue": { "value": "gemini-3.5-flash-lite" },
+      "description": "Cloud Gemini model used by Firebase AI Logic when cellular/Starlink returns for hospital surge synthesis.",
+      "valueType": "STRING"
+    },
+    "start_resp_rate_max": {
+      "defaultValue": { "value": "30" },
+      "description": "START protocol upper respiratory rate threshold (breaths/min) triggering IMMEDIATE RED.",
+      "valueType": "NUMBER"
+    },
+    "start_cap_refill_max_sec": {
+      "defaultValue": { "value": "2" },
+      "description": "START protocol maximum normal capillary refill time (seconds) before IMMEDIATE RED.",
+      "valueType": "NUMBER"
+    },
+    "max_offline_queue": {
+      "defaultValue": { "value": "200" },
+      "description": "Maximum offline casualty tags retained in IndexedDB/localStorage hash chain.",
+      "valueType": "NUMBER"
+    },
+    "prefer_on_device_intake": {
+      "defaultValue": { "value": "true" },
+      "description": "Enforce ONLY_ON_DEVICE inference for casualty intake during dead-zone operations.",
+      "valueType": "BOOLEAN"
+    }
+  }
+}
