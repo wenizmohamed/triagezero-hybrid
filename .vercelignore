@@ -1,0 +1,10 @@
+demo_build/
+verify_shots/
+*.mp4
+*.mov
+*.avi
+*.wav
+*.png
+*.jpg
+test/
+node_modules/

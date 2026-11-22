@@ -313,12 +313,12 @@ function renderHybridPipelineSvg() {
   const cloudText = online ? "#1E3A8A" : "#94A3B8";
 
   $("#hybridPipelineSvg").innerHTML = `
-  <svg viewBox="0 0 1080 98" role="img" aria-label="Firebase AI Logic Hybrid Routing Architecture">
+  <svg viewBox="0 0 1080 98" role="img" aria-label="How TriageZero switches between Offline On-Device AI and Cloud Hospital Dispatch">
     <!-- Stage 1: On-Device -->
     <rect x="6" y="14" width="235" height="70" rx="10" fill="#0F172A" stroke="#16A34A" stroke-width="2"/>
-    <text x="20" y="36" font-size="10.5" font-weight="800" fill="#4ADE80" font-family="JetBrains Mono, monospace">ON-DEVICE · ALWAYS ACTIVE</text>
-    <text x="20" y="54" font-size="13" font-weight="700" fill="#FFFFFF">Gemini Nano + START RPM</text>
-    <text x="20" y="71" font-size="10" fill="#94A3B8" font-family="JetBrains Mono, monospace">InferenceMode.ONLY_ON_DEVICE</text>
+    <text x="20" y="36" font-size="10.5" font-weight="800" fill="#4ADE80" font-family="JetBrains Mono, monospace">ON-DEVICE · ALWAYS READY</text>
+    <text x="20" y="54" font-size="13" font-weight="700" fill="#FFFFFF">Instant Offline Triage</text>
+    <text x="20" y="71" font-size="10" fill="#94A3B8" font-family="JetBrains Mono, monospace">Gemini Nano · ONLY_ON_DEVICE</text>
 
     <!-- Connector 1 -> 2 -->
     <line x1="241" y1="49" x2="294" y2="49" stroke="#16A34A" stroke-width="2.5" stroke-dasharray="6 4">
@@ -328,9 +328,9 @@ function renderHybridPipelineSvg() {
 
     <!-- Stage 2: SHA-256 Offline Queue -->
     <rect x="306" y="14" width="215" height="70" rx="10" fill="#FFFFFF" stroke="#0F172A" stroke-width="1.8"/>
-    <text x="320" y="36" font-size="10.5" font-weight="800" fill="#0F172A" font-family="JetBrains Mono, monospace">LOCAL HASH CHAIN</text>
-    <text x="320" y="54" font-size="12.5" font-weight="700" fill="#0F172A">IndexedDB Queue (${state.queue.length})</text>
-    <text x="320" y="71" font-size="10" fill="#475569" font-family="JetBrains Mono, monospace">SHA-256 Tamper-Evident</text>
+    <text x="320" y="36" font-size="10.5" font-weight="800" fill="#0F172A" font-family="JetBrains Mono, monospace">OFFLINE STORAGE</text>
+    <text x="320" y="54" font-size="12.5" font-weight="700" fill="#0F172A">Saved Patients (${state.queue.length})</text>
+    <text x="320" y="71" font-size="10" fill="#475569" font-family="JetBrains Mono, monospace">Tamper-Proof SHA-256</text>
 
     <!-- Connector 2 -> Gate -->
     <line x1="521" y1="49" x2="564" y2="49" stroke="${gateColor}" stroke-width="2.5" stroke-dasharray="${online ? "6 4" : "3 5"}">
@@ -339,8 +339,8 @@ function renderHybridPipelineSvg() {
 
     <!-- Connectivity Boundary Gate -->
     <rect x="566" y="18" width="142" height="62" rx="31" fill="${online ? "#DCFCE7" : "#FEF3C7"}" stroke="${gateColor}" stroke-width="2"/>
-    <text x="637" y="45" text-anchor="middle" font-size="10.5" font-weight="800" fill="${online ? "#166534" : "#92400E"}" font-family="JetBrains Mono, monospace">${online ? "LINK RESTORED" : "DEAD ZONE SEAL"}</text>
-    <text x="637" y="62" text-anchor="middle" font-size="10" font-weight="700" fill="${online ? "#15803D" : "#B45309"}">${online ? "Starlink / 5G Open" : "0 B Cloud Traffic"}</text>
+    <text x="637" y="45" text-anchor="middle" font-size="10.5" font-weight="800" fill="${online ? "#166534" : "#92400E"}" font-family="JetBrains Mono, monospace">${online ? "SIGNAL RESTORED" : "NO SIGNAL SEAL"}</text>
+    <text x="637" y="62" text-anchor="middle" font-size="10" font-weight="700" fill="${online ? "#15803D" : "#B45309"}">${online ? "Starlink / 5G Open" : "0 B Cloud Data"}</text>
 
     <!-- Connector Gate -> Cloud -->
     <line x1="708" y1="49" x2="752" y2="49" stroke="${cloudStroke}" stroke-width="2.5" stroke-dasharray="${online ? "6 4" : "4 6"}">
@@ -350,9 +350,9 @@ function renderHybridPipelineSvg() {
 
     <!-- Stage 3: Cloud Surge -->
     <rect x="764" y="14" width="310" height="70" rx="10" fill="${cloudFill}" stroke="${cloudStroke}" stroke-width="2"/>
-    <text x="778" y="36" font-size="10.5" font-weight="800" fill="${online ? "#2563EB" : "#94A3B8"}" font-family="JetBrains Mono, monospace">${online ? "IN-CLOUD · ACTIVE BURST" : "IN-CLOUD · STANDBY (OFFLINE)"}</text>
-    <text x="778" y="54" font-size="12.5" font-weight="700" fill="${cloudText}">Firebase AI Logic · ${esc(state.policy.cloudModel)}</text>
-    <text x="778" y="71" font-size="10" fill="${cloudText}" font-family="JetBrains Mono, monospace">Surge Diversion + FHIR R4 + Zero-PHI Receipt</text>
+    <text x="778" y="36" font-size="10.5" font-weight="800" fill="${online ? "#2563EB" : "#94A3B8"}" font-family="JetBrains Mono, monospace">${online ? "CLOUD DISPATCH · ACTIVE" : "CLOUD DISPATCH · STANDBY"}</text>
+    <text x="778" y="54" font-size="12.5" font-weight="700" fill="${cloudText}">Hospital Bed &amp; Trauma Routing</text>
+    <text x="778" y="71" font-size="10" fill="${cloudText}" font-family="JetBrains Mono, monospace">ONLY_IN_CLOUD · ${esc(state.policy.cloudModel)}</text>
   </svg>`;
 }
 
@@ -703,37 +703,39 @@ function renderHeaderAndKpis() {
     : `${router.totalCloudBytes} B`;
 
   $("#headerCloudBytes").textContent = bytesFormatted;
-  $("#kpiInferenceMode").textContent = route.firebaseMode;
-  $("#kpiEngineMeta").textContent = route.engineLabel;
+  $("#kpiInferenceMode").textContent = online ? "Cloud Hospital Dispatch" : "On-Device Offline";
+  $("#kpiEngineMeta").textContent = online
+    ? `Firebase ONLY_IN_CLOUD · ${state.policy.cloudModel}`
+    : "Firebase ONLY_ON_DEVICE · Works with zero signal";
   $("#kpiModeCard").className = `kpi-card ${online ? "mode-online" : "mode-offline"}`;
 
   $("#kpiCloudTraffic").textContent = bytesFormatted;
   $("#kpiCloudMeta").textContent = online
-    ? `Starlink/5G restored · ${router.queueFlushes} surge burst(s) synced`
-    : "Dead-zone seal active · 0 B transmitted while offline";
+    ? `Signal restored · ${router.queueFlushes} hospital sync(s) completed`
+    : "Offline seal active · 0 B sent without signal";
 
   $("#kpiLatencyVal").textContent = `${state.lastLatencyMs} ms`;
-  $("#kpiTokensSaved").textContent = `${router.totalLocalTokensSaved.toLocaleString()} tokens kept on-device`;
+  $("#kpiTokensSaved").textContent = `${router.totalLocalTokensSaved.toLocaleString()} AI tokens kept on-device`;
 
   const chain = verifyHashChain(state.queue);
   const unsynced = state.queue.filter((q) => !q.synced).length;
-  $("#kpiQueueVal").textContent = `${state.queue.length} Tagged (${unsynced} Local)`;
+  $("#kpiQueueVal").textContent = `${state.queue.length} Patient${state.queue.length === 1 ? "" : "s"} (${unsynced} Offline)`;
   $("#kpiChainMeta").textContent = chain.valid
-    ? `SHA-256 chain verified (${chain.rootHash.slice(0, 10)}…)`
-    : "Chain integrity mismatch detected";
+    ? `Tamper-proof SHA-256 verified (${chain.rootHash.slice(0, 10)}…)`
+    : "Queue integrity warning detected";
 
   const pipeBadge = $("#pipelineStatusBadge");
   pipeBadge.textContent = online
-    ? "LINK RESTORED · ONLY_IN_CLOUD SURGE ACTIVE"
-    : "BOUNDARY SEALED · 100% ON-DEVICE";
+    ? "SIGNAL RESTORED · CLOUD DISPATCH ACTIVE"
+    : "OFFLINE SAFE · 0 B CLOUD DATA";
   pipeBadge.classList.toggle("online", online);
 
   $("#tabSurgeCount").textContent = String(state.queue.length);
   $("#tabAuditCount").textContent = String(router.auditLog.length);
 
   $("#nanoDetectorChip").textContent = state.hasChromeNano
-    ? "Chrome Gemini Nano Ready"
-    : "On-Device START RPM + Nano SDK";
+    ? "On-Device Gemini Nano Ready"
+    : "On-Device AI Ready (Offline)";
 
   renderHybridPipelineSvg();
 }
@@ -741,7 +743,7 @@ function renderHeaderAndKpis() {
 function renderQueueList() {
   const host = $("#queueList");
   if (state.queue.length === 0) {
-    host.innerHTML = `<div class="queue-empty">No casualties queued yet. Click <strong>Tag &amp; Queue Casualty Locally</strong> or click <strong>⚡ Run 6-Casualty Mass-Incident</strong> in the header.</div>`;
+    host.innerHTML = `<div class="queue-empty">No patients saved yet. Click <strong>Tag &amp; Save Patient Offline</strong> or click <strong>⚡ Run 6-Patient Mass-Casualty Drill</strong> at the top.</div>`;
     return;
   }
 
