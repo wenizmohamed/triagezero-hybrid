@@ -21,7 +21,7 @@ import {
 import {
   loadClinicalPolicy,
   onDeviceTriageModel,
-  cloudSurgeModel,
+  generateSurgeBriefWithResilience,
   saveDispatchReceipt,
   publishFieldTag,
   subscribeIncidentCasualties,
@@ -454,7 +454,10 @@ function applyExtractedVitalsToForm(extracted) {
   if (extracted.specialtyNeed && $("#inputSpecialty")?.querySelector(`option[value="${extracted.specialtyNeed}"]`)) {
     $("#inputSpecialty").value = extracted.specialtyNeed;
   }
-  state.lastNanoNote = extracted.clinicalSummary || "";
+  const sum = extracted.clinicalSummary || "";
+  state.lastNanoNote = /\/min/i.test(sum)
+    ? sum
+    : `${sum} [RR ${extracted.respRate}/min, Cap ${extracted.capRefillSec.toFixed(1)}s, ${extracted.radialPulse ? "Pulse+" : "NoPulse"}]`;
   updateLiveTriagePreview();
 }
 
@@ -466,7 +469,10 @@ async function runOnDeviceNarrativeExtraction({ applyToForm = true, silent = fal
 
   if (state.hasChromeNano && typeof self.LanguageModel?.availability === "function") {
     try {
-      const avail = await self.LanguageModel.availability();
+      const avail = await self.LanguageModel.availability({
+        expectedInputs: [{ type: "text", languages: ["en"] }],
+        expectedOutputs: [{ type: "text", languages: ["en"] }],
+      });
       if (avail === "available" || avail === "readily") {
         const model = onDeviceTriageModel();
         const prompt = `Extract exact START triage fields (canWalk, breathing, airwayOpenedBreathing, respRate, capRefillSec, radialPulse, obeysCommands, pediatric, specialtyNeed, clinicalSummary) from EMS field note:\n"${narrative}"`;
@@ -654,22 +660,20 @@ async function executeCloudSurgeBurst({ autoSwitchTab = false } = {}) {
   let briefText = alloc.deterministicBrief;
   let sourceLabel = `in-cloud · ${state.policy.cloudModel}`;
   let noteSuffix = "Firebase AI Logic ONLY_IN_CLOUD surge brief synthesized.";
+  state.cloudModelUsed = state.policy.cloudModel;
 
-  // Attempt live Firebase AI Logic ONLY_IN_CLOUD call (gemini-3.5-flash-lite)
+  // Attempt live Firebase AI Logic ONLY_IN_CLOUD call (gemini-4-hydrogen primary + automatic transient failover)
   try {
-    const model = cloudSurgeModel(state.policy);
     const prompt = `Synthesize a crisp emergency hospital surge command brief strictly honoring these confirmed START hospital assignments and diversion alerts:\n${payloadText}`;
-    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("cloud_timeout")), 14000));
-    const res = await Promise.race([model.generateContent(prompt), timeoutPromise]);
-    const text = res?.response?.text?.();
-    if (text && text.trim().length > 40) {
-      briefText = text.trim();
-      sourceLabel = `in-cloud · LIVE ${state.policy.cloudModel}`;
-      noteSuffix = "Live Firebase AI Logic ONLY_IN_CLOUD surge brief synthesized.";
-    }
+    const { text, modelUsed, failedOver } = await generateSurgeBriefWithResilience(state.policy, prompt, { timeoutMs: 22000 });
+    briefText = text;
+    state.cloudModelUsed = modelUsed;
+    sourceLabel = failedOver ? `in-cloud · LIVE ${modelUsed} (failover)` : `in-cloud · LIVE ${modelUsed}`;
+    noteSuffix = `Live Firebase AI Logic ONLY_IN_CLOUD (${modelUsed}) surge brief synthesized.`;
   } catch {
     // Clean deterministic clinical surge synthesis fallback when network/origin restricts cloud API
     briefText = alloc.deterministicBrief;
+    state.cloudModelUsed = state.policy.cloudModel;
     sourceLabel = `in-cloud · ${state.policy.cloudModel} (Surge Guard)`;
     noteSuffix = "Cloud surge payload routed with deterministic hospital-diversion guarantee.";
   }
@@ -937,7 +941,7 @@ function renderSurgeTab() {
   badge.textContent = router.online && state.cloudBrief ? state.cloudBriefSource : "STANDBY (OFFLINE)";
   badge.classList.toggle("cloud-live", router.online && Boolean(state.cloudBrief));
   if ($("#cloudBriefMeta")) {
-    $("#cloudBriefMeta").textContent = `Firebase AI Logic · ONLY_IN_CLOUD · ${state.policy.cloudModel}`;
+    $("#cloudBriefMeta").textContent = `Firebase AI Logic · ONLY_IN_CLOUD · ${state.cloudModelUsed || state.policy.cloudModel}`;
   }
 
   $("#cloudBriefContent").textContent =

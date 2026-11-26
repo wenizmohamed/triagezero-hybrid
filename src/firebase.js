@@ -104,6 +104,8 @@ export async function loadClinicalPolicy({ online = false } = {}) {
   };
 }
 
+export const CLOUD_FALLBACK_MODEL = "gemini-3.5-flash-lite";
+
 /**
  * Strictly on-device Chrome Built-in AI (Gemini Nano) triage extractor.
  * Never transmits casualty data to the cloud; zero internet required in dead zones.
@@ -116,6 +118,7 @@ export function onDeviceTriageModel() {
         temperature: 0.1,
         topK: 1,
         expectedInputs: [{ type: "text", languages: ["en"] }],
+        expectedOutputs: [{ type: "text", languages: ["en"] }],
       },
       promptOptions: {
         responseConstraint: TRIAGE_NANO_SCHEMA,
@@ -127,21 +130,62 @@ export function onDeviceTriageModel() {
 /**
  * Strictly in-cloud Firebase AI Logic model (gemini-4-hydrogen) invoked ONLY when
  * cellular/Starlink connectivity returns to synthesize Multi-Casualty Hospital Surge Allocation
- * and Clinical SOAP handoff narratives.
+ * and Clinical SOAP handoff narratives. Uses 4096 maxOutputTokens so Gemini 4 thinking never truncates output.
  */
-export function cloudSurgeModel(policy, { withAppCheck = true } = {}) {
+export function cloudSurgeModel(policy, { withAppCheck = true, modelOverride = null } = {}) {
   if (withAppCheck) ensureAppCheck();
   return getGenerativeModel(ai, {
     mode: InferenceMode.ONLY_IN_CLOUD,
     inCloudParams: {
-      model: policy?.cloudModel || "gemini-4-hydrogen",
+      model: modelOverride || policy?.cloudModel || "gemini-4-hydrogen",
       systemInstruction: CLOUD_SURGE_SYSTEM,
       generationConfig: {
         temperature: 0.2,
-        maxOutputTokens: 900,
+        maxOutputTokens: 4096,
       },
     },
   });
+}
+
+function isTransientSurgeError(err) {
+  const msg = String(err?.message || err || "");
+  return /\b(500|502|503|429)\b|high demand|temporarily|unavailable|INTERNAL|fetch-error|cloud_timeout|empty_response|network/i.test(msg);
+}
+
+async function runTimedSurgeAttempt(policy, prompt, modelName, timeoutMs) {
+  const model = cloudSurgeModel(policy, { modelOverride: modelName });
+  const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("cloud_timeout")), timeoutMs));
+  const res = await Promise.race([model.generateContent(prompt), timeoutPromise]);
+  const text = (res?.response?.text?.() || "").trim();
+  if (text.length <= 40) {
+    throw new Error("empty_response");
+  }
+  return { text, modelUsed: modelName };
+}
+
+/**
+ * Invokes Firebase AI Logic ONLY_IN_CLOUD surge synthesis with automatic retry and
+ * seamless Spark-safe failover to Flash-Lite if primary Gemini 4 Hydrogen sees transient high demand.
+ */
+export async function generateSurgeBriefWithResilience(policy, prompt, { timeoutMs = 22000 } = {}) {
+  const primary = policy?.cloudModel || "gemini-4-hydrogen";
+  try {
+    const out = await runTimedSurgeAttempt(policy, prompt, primary, timeoutMs);
+    return { ...out, failedOver: false };
+  } catch (firstErr) {
+    if (!isTransientSurgeError(firstErr)) throw firstErr;
+    await new Promise((r) => setTimeout(r, 550));
+    try {
+      const out = await runTimedSurgeAttempt(policy, prompt, primary, timeoutMs);
+      return { ...out, failedOver: false };
+    } catch (secondErr) {
+      if (!isTransientSurgeError(secondErr) || primary === CLOUD_FALLBACK_MODEL) {
+        throw secondErr;
+      }
+      const out = await runTimedSurgeAttempt(policy, prompt, CLOUD_FALLBACK_MODEL, timeoutMs);
+      return { ...out, failedOver: true };
+    }
+  }
 }
 
 /**
@@ -153,13 +197,14 @@ export function adaptiveHybridModel(policy) {
     inCloudParams: {
       model: policy?.cloudModel || "gemini-4-hydrogen",
       systemInstruction: CLOUD_SURGE_SYSTEM,
-      generationConfig: { temperature: 0.2 },
+      generationConfig: { temperature: 0.2, maxOutputTokens: 4096 },
     },
     onDeviceParams: {
       createOptions: {
         temperature: 0.1,
         topK: 1,
         expectedInputs: [{ type: "text", languages: ["en"] }],
+        expectedOutputs: [{ type: "text", languages: ["en"] }],
       },
     },
   });
