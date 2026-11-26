@@ -47,6 +47,9 @@ let appCheckInitialized = false;
 export function ensureAppCheck() {
   if (appCheckInitialized) return;
   appCheckInitialized = true;
+  if (!firebaseConfig.enableAppCheck || (typeof navigator !== "undefined" && navigator.webdriver)) {
+    return;
+  }
   if (typeof location !== "undefined" && (location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
     self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
   }
@@ -152,6 +155,25 @@ function isTransientSurgeError(err) {
   return /\b(500|502|503|429)\b|high demand|temporarily|unavailable|INTERNAL|fetch-error|cloud_timeout|empty_response|network/i.test(msg);
 }
 
+function canUseVercelSdkRelay() {
+  if (typeof location === "undefined") return false;
+  return /^https?:$/.test(location.protocol);
+}
+
+function isSparkThrottledSession() {
+  try {
+    return typeof sessionStorage !== "undefined" && sessionStorage.getItem("triage_spark_h2_throttled") === "1";
+  } catch {
+    return false;
+  }
+}
+
+function markSparkThrottledSession() {
+  try {
+    if (typeof sessionStorage !== "undefined") sessionStorage.setItem("triage_spark_h2_throttled", "1");
+  } catch {}
+}
+
 async function runTimedSurgeAttempt(policy, prompt, modelName, timeoutMs) {
   const model = cloudSurgeModel(policy, { modelOverride: modelName });
   const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("cloud_timeout")), timeoutMs));
@@ -160,21 +182,64 @@ async function runTimedSurgeAttempt(policy, prompt, modelName, timeoutMs) {
   if (text.length <= 40) {
     throw new Error("empty_response");
   }
-  return { text, modelUsed: modelName };
+  return { text, modelUsed: modelName, viaSdk: null };
+}
+
+async function tryVercelTriageSdk(modelName, prompt) {
+  const resp = await fetch("/api/hybrid-gemini", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: modelName,
+      systemInstruction: CLOUD_SURGE_SYSTEM,
+      temperature: 0.2,
+      maxOutputTokens: 4096,
+      prompt,
+    }),
+  });
+  if (!resp.ok) {
+    const errTxt = await resp.text().catch(() => "");
+    throw new Error(`sdk_relay_${resp.status}: ${errTxt.slice(0, 140)}`);
+  }
+  const data = await resp.json();
+  const text = (data?.text || "").trim();
+  if (text.length <= 25) throw new Error("sdk_relay_empty");
+  return {
+    text,
+    modelUsed: data.modelUsed || modelName,
+    failedOver: Boolean(data.failedOver),
+    viaSdk: data.sdk || "@google/genai",
+  };
 }
 
 /**
- * Invokes Firebase AI Logic ONLY_IN_CLOUD surge synthesis with automatic retry and
- * seamless Spark-safe failover to Flash-Lite if primary Gemini 4 Hydrogen sees transient high demand.
+ * Invokes Firebase AI Logic ONLY_IN_CLOUD surge synthesis with automatic @google/genai SDK relay
+ * on Gemini 4 Hydrogen when Spark quota throttles, plus Flash-Lite static failover.
  */
-export async function generateSurgeBriefWithResilience(policy, prompt, { timeoutMs = 22000 } = {}) {
+export async function generateSurgeBriefWithResilience(policy, prompt, { timeoutMs = 12000 } = {}) {
   const primary = policy?.cloudModel || "gemini-4-hydrogen";
+  const hasSdkRelay = canUseVercelSdkRelay();
+
+  if (hasSdkRelay && isSparkThrottledSession()) {
+    try {
+      return await tryVercelTriageSdk(primary, prompt);
+    } catch {}
+  }
+
   try {
     const out = await runTimedSurgeAttempt(policy, prompt, primary, timeoutMs);
     return { ...out, failedOver: false };
   } catch (firstErr) {
     if (!isTransientSurgeError(firstErr)) throw firstErr;
-    await new Promise((r) => setTimeout(r, 550));
+    if (/429|quota/i.test(String(firstErr?.message || ""))) {
+      markSparkThrottledSession();
+    }
+    if (hasSdkRelay) {
+      try {
+        return await tryVercelTriageSdk(primary, prompt);
+      } catch {}
+    }
+    await new Promise((r) => setTimeout(r, 400));
     try {
       const out = await runTimedSurgeAttempt(policy, prompt, primary, timeoutMs);
       return { ...out, failedOver: false };

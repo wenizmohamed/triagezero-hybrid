@@ -86,7 +86,7 @@ class FirebaseHybridTriageEngine(context: Context) {
             modelName = cloudModel,
             generationConfig = generationConfig {
                 temperature = 0.2f
-                maxOutputTokens = 320
+                maxOutputTokens = 2048
             },
             systemInstruction = content("system") { text(systemPrompt) },
             onDeviceConfig = OnDeviceConfig(mode = InferenceMode.PREFER_ON_DEVICE)
@@ -103,7 +103,7 @@ class FirebaseHybridTriageEngine(context: Context) {
             modelName = cloudModel,
             generationConfig = generationConfig {
                 temperature = 0.2f
-                maxOutputTokens = 650
+                maxOutputTokens = 4096
             },
             systemInstruction = content("system") {
                 text(
@@ -237,11 +237,17 @@ class FirebaseHybridTriageEngine(context: Context) {
             if (text.length > 25) {
                 text to "in_cloud · LIVE $cloudModel"
             } else {
-                fallbackSurgeText(records, counts) to "in_cloud · Guard"
+                val fb = withTimeout(12000) { cloudSurgeModel("gemini-3.5-flash-lite").generateContent(summaryInput) }
+                val fbText = fb.text?.trim().orEmpty()
+                if (fbText.length > 25) fbText to "in_cloud · LIVE gemini-3.5-flash-lite (failover)" else fallbackSurgeText(records, counts) to "in_cloud · Guard"
             }
         } catch (t: Throwable) {
-            Log.w("TriageZeroCloud", "Cloud surge fallback: ${t.message}")
-            fallbackSurgeText(records, counts) to "offline_guard"
+            Log.w("TriageZeroCloud", "Primary cloud surge retry with failover: ${t.message}")
+            runCatching {
+                val fb = withTimeout(12000) { cloudSurgeModel("gemini-3.5-flash-lite").generateContent(summaryInput) }
+                val fbText = fb.text?.trim().orEmpty()
+                if (fbText.length > 25) fbText to "in_cloud · LIVE gemini-3.5-flash-lite (failover)" else null
+            }.getOrNull() ?: (fallbackSurgeText(records, counts) to "offline_guard")
         }
 
         return HybridBriefResult(

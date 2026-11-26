@@ -474,9 +474,15 @@ async function runOnDeviceNarrativeExtraction({ applyToForm = true, silent = fal
         expectedOutputs: [{ type: "text", languages: ["en"] }],
       });
       if (avail === "available" || avail === "readily") {
+        if (!silent) {
+          $("#intakeToast").textContent = "Running Chrome Gemini Nano on-device extractor (0 B cloud)...";
+        }
         const model = onDeviceTriageModel();
         const prompt = `Extract exact START triage fields (canWalk, breathing, airwayOpenedBreathing, respRate, capRefillSec, radialPulse, obeysCommands, pediatric, specialtyNeed, clinicalSummary) from EMS field note:\n"${narrative}"`;
-        const res = await model.generateContent(prompt);
+        const res = await Promise.race([
+          model.generateContent(prompt),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("nano_timeout")), 8000)),
+        ]);
         const rawText = res?.response?.text?.() || "";
         if (rawText) {
           extracted = normalizeNanoTriagePayload(JSON.parse(rawText), narrative);
@@ -606,6 +612,9 @@ async function runSixCasualtyMassIncident() {
   }
   const localBatchMs = Math.max(2, Math.round(performance.now() - t0));
   await persistQueue(state.queue);
+  recomputeAllocationAndExports();
+  renderAll();
+  $("#intakeToast").textContent = `Triaged 6 casualties offline (0 B cloud · ${localBatchMs} ms) — restoring Starlink/5G surge dispatch...`;
 
   router.recordEvent({
     step: "Mass-Incident Offline Batch (6 Casualties)",
@@ -662,14 +671,18 @@ async function executeCloudSurgeBurst({ autoSwitchTab = false } = {}) {
   let noteSuffix = "Firebase AI Logic ONLY_IN_CLOUD surge brief synthesized.";
   state.cloudModelUsed = state.policy.cloudModel;
 
-  // Attempt live Firebase AI Logic ONLY_IN_CLOUD call (gemini-4-hydrogen primary + automatic transient failover)
+  // Attempt live Firebase AI Logic ONLY_IN_CLOUD call (gemini-4-hydrogen primary + @google/genai SDK relay)
   try {
     const prompt = `Synthesize a crisp emergency hospital surge command brief strictly honoring these confirmed START hospital assignments and diversion alerts:\n${payloadText}`;
-    const { text, modelUsed, failedOver } = await generateSurgeBriefWithResilience(state.policy, prompt, { timeoutMs: 22000 });
+    const { text, modelUsed, failedOver, viaSdk } = await generateSurgeBriefWithResilience(state.policy, prompt, { timeoutMs: 12000 });
     briefText = text;
     state.cloudModelUsed = modelUsed;
-    sourceLabel = failedOver ? `in-cloud · LIVE ${modelUsed} (failover)` : `in-cloud · LIVE ${modelUsed}`;
-    noteSuffix = `Live Firebase AI Logic ONLY_IN_CLOUD (${modelUsed}) surge brief synthesized.`;
+    sourceLabel = failedOver
+      ? `in-cloud · LIVE ${modelUsed} (failover)`
+      : viaSdk
+        ? `in-cloud · LIVE ${modelUsed} (${viaSdk})`
+        : `in-cloud · LIVE ${modelUsed}`;
+    noteSuffix = `Live Hybrid Cloud (${modelUsed}${viaSdk ? ` via ${viaSdk}` : ""}) surge brief synthesized.`;
   } catch {
     // Clean deterministic clinical surge synthesis fallback when network/origin restricts cloud API
     briefText = alloc.deterministicBrief;

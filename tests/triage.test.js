@@ -578,4 +578,14 @@ describe("7. On-Device Gemini Nano Schema Normalization & Offline Clinical NLP E
     expect(normalized.specialtyNeed).toBe("general_trauma");
     expect(normalized.clinicalSummary).toBe("Airway priority");
   });
+
+  it("ships @google/genai hybrid relay without hardcoded API secrets and guards Nano timeout", () => {
+    const relay = fs.readFileSync(path.resolve(process.cwd(), "api/hybrid-gemini.js"), "utf-8");
+    expect(relay).toContain("@google/genai");
+    expect(relay).toContain("process.env.GEMINI_API_KEY");
+    expect(relay).toContain("gemini-4-hydrogen");
+    expect(relay).not.toMatch(/AIza[0-9A-Za-z_-]{35}/);
+    const mainJs = fs.readFileSync(path.resolve(process.cwd(), "src/main.js"), "utf-8");
+    expect(mainJs).toContain("nano_timeout");
+  });
 });
