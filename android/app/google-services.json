@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "789086501722",
+    "project_id": "path-to-glory-478801",
+    "storage_bucket": "path-to-glory-478801.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:789086501722:android:32b35b6ba477192a681163",
+        "android_client_info": {
+          "package_name": "com.triagezero.field"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "789086501722-l1uqh8e6gnd34v4j95l8v8025k4b62a8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD0m7XYhTF8aVruL3dK_96H4GTJ9XjV4BY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "789086501722-l1uqh8e6gnd34v4j95l8v8025k4b62a8.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

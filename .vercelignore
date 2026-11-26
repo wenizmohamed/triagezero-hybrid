@@ -8,3 +8,4 @@ verify_shots/
 *.jpg
 test/
 node_modules/
+android/

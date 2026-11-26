@@ -943,6 +943,12 @@ html, body {
   border: 1px solid var(--green-border);
 }
 
+.q-sync-android {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #93c5fd;
+}
+
 /* Tab 2: Hospital Surge */
 .surge-top-banner {
   background: var(--surface);

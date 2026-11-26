@@ -21,6 +21,8 @@ import {
   onDeviceTriageModel,
   cloudSurgeModel,
   saveDispatchReceipt,
+  publishFieldTag,
+  subscribeIncidentCasualties,
   getEmsSessionId,
   InferenceSource,
 } from "./firebase.js";
@@ -56,6 +58,8 @@ const state = {
   hasChromeNano: typeof self !== "undefined" && typeof self.LanguageModel !== "undefined",
   sessionId: getEmsSessionId(),
   rulesSuite: runFirestoreSecuritySuite(),
+  unsubRelay: null,
+  androidSyncedCount: 0,
 };
 
 // --- IndexedDB + localStorage Dual Offline Persistence ---
@@ -515,6 +519,7 @@ async function tagCurrentCasualtyLocally({ silent = false } = {}) {
 // --- 1-Click 6-Casualty Mass-Incident Batch (Offline Intake -> Online Cloud Surge Burst) ---
 async function runSixCasualtyMassIncident() {
   // Phase 1: Engage OFFLINE DEAD ZONE and triage all 6 casualties locally with 0 B cloud traffic
+  stopIncidentRelaySubscription();
   router.setConnectivity(false);
   state.queue = [];
   const allSix = [...PRELOADED_CASES, EXTRA_BATCH_CASE];
@@ -547,6 +552,7 @@ async function runSixCasualtyMassIncident() {
 
   // Phase 2: Restore Connectivity (Starlink / 5G) and execute ONLY_IN_CLOUD Surge Burst
   router.setConnectivity(true);
+  startIncidentRelaySubscription();
   await executeCloudSurgeBurst({ autoSwitchTab: true });
 }
 
@@ -590,7 +596,7 @@ async function executeCloudSurgeBurst({ autoSwitchTab = false } = {}) {
   try {
     const model = cloudSurgeModel(state.policy);
     const prompt = `Synthesize a crisp emergency hospital surge command brief strictly honoring these confirmed START hospital assignments and diversion alerts:\n${payloadText}`;
-    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("cloud_timeout")), 5000));
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("cloud_timeout")), 14000));
     const res = await Promise.race([model.generateContent(prompt), timeoutPromise]);
     const text = res?.response?.text?.();
     if (text && text.trim().length > 40) {
@@ -625,7 +631,7 @@ async function executeCloudSurgeBurst({ autoSwitchTab = false } = {}) {
     note: `${flushedCount} offline tags flushed (0 dropped) · ${noteSuffix}`,
   });
 
-  // Construct strictly zero-PHI Firestore dispatch receipt validated against firestore.rules
+  // Persist strictly zero-PHI dispatch receipt & de-identified field relay tags to Cloud Firestore
   const receipt = buildDispatchReceipt({
     incidentId: state.incidentId,
     allocation: alloc,
@@ -634,11 +640,8 @@ async function executeCloudSurgeBurst({ autoSwitchTab = false } = {}) {
     cloudBytesSent: cloudBytes,
     chainRootSha256: chainCheck.rootHash,
   });
-
-  // Persist receipt to Firestore only when explicitly enabled on a project with TriageZero rules deployed
-  if (typeof window !== "undefined" && window.__TRIAGEZERO_SYNC_FIRESTORE === true) {
-    saveDispatchReceipt(state.sessionId, receipt).catch(() => {});
-  }
+  saveDispatchReceipt(state.sessionId, receipt).catch(() => {});
+  Promise.allSettled(state.queue.map((item) => publishFieldTag(state.incidentId, item))).catch(() => {});
 
   recomputeAllocationAndExports();
   renderAll();
@@ -649,15 +652,77 @@ async function executeCloudSurgeBurst({ autoSwitchTab = false } = {}) {
   }
 }
 
+function stopIncidentRelaySubscription() {
+  if (typeof state.unsubRelay === "function") {
+    state.unsubRelay();
+    state.unsubRelay = null;
+  }
+}
+
+function startIncidentRelaySubscription() {
+  if (state.unsubRelay || !router.online) return;
+  state.unsubRelay = subscribeIncidentCasualties(state.incidentId, async (remoteRows) => {
+    if (!router.online || !Array.isArray(remoteRows) || !remoteRows.length) return;
+    let addedAndroid = 0;
+    const seenIds = new Set(state.queue.map((q) => q.id));
+    for (const row of remoteRows) {
+      if (!row?.id || seenIds.has(row.id) || row.platform !== "android") continue;
+      const vitals = {
+        canWalk: Boolean(row.canWalk),
+        breathing: Boolean(row.breathing),
+        airwayOpenedBreathing: Boolean(row.airwayOpenedBreathing),
+        respRate: Number(row.respRate ?? 20),
+        capRefillSec: Number(row.capRefillSec ?? 1.5),
+        radialPulse: Boolean(row.radialPulse),
+        obeysCommands: Boolean(row.obeysCommands),
+      };
+      const triage = evaluateSTART(vitals, state.policy.thresholds);
+      const chained = appendToHashChain(state.queue, {
+        id: row.id,
+        shortLabel: row.id,
+        title: `Android Field Relay (${row.specialtyNeed || "field_trauma"})`,
+        incident: state.incidentId,
+        ageSex: row.ageSex || "Adult",
+        pediatric: Boolean(row.pediatric),
+        specialtyNeed: row.specialtyNeed || "general_trauma",
+        mechanism: "Captured offline via TriageZero Android Companion (Gemini Nano / START RPM) and synced on reconnect.",
+        vitals,
+        triage,
+        taggedAt: new Date().toISOString(),
+        inferenceSource: row.inferenceSource === "in_cloud" ? "in-cloud" : "on-device",
+        platform: "android",
+        synced: true,
+      });
+      state.queue.push(chained);
+      seenIds.add(row.id);
+      addedAndroid += 1;
+      state.androidSyncedCount += 1;
+    }
+    if (addedAndroid > 0) {
+      await persistQueue(state.queue);
+      recomputeAllocationAndExports();
+      renderAll();
+      $("#intakeToast").textContent = `Live Android Field Sync: +${addedAndroid} casualty tag(s) merged from Android EMT companion into Hospital Dispatch.`;
+    }
+  });
+}
+
 // --- Connectivity Toggle Handler ---
 async function setConnectivityMode(isOnline) {
   const wasOnline = router.online;
   router.setConnectivity(isOnline);
 
+  if (!isOnline) {
+    stopIncidentRelaySubscription();
+    renderAll();
+    return;
+  }
+
   if (isOnline && !wasOnline) {
-    // Refresh Remote Config silently when connectivity returns
-    loadClinicalPolicy({ online: false }).then((p) => {
-      state.policy = { ...p, source: "remote_synced" };
+    startIncidentRelaySubscription();
+    // Refresh live Firebase Remote Config when cellular/Starlink connectivity returns
+    loadClinicalPolicy({ online: true }).then((p) => {
+      state.policy = p;
       renderAuditTab();
     });
 
@@ -759,8 +824,8 @@ function renderQueueList() {
       </div>
       <div class="q-meta mono">
         <span>sha256:${esc((c.entryHash || "").slice(0, 10))}…</span>
-        <span class="q-sync-badge ${c.synced ? "q-sync-cloud" : "q-sync-local"}">
-          ${c.synced ? "SYNCED IN-CLOUD" : "QUEUED OFFLINE"}
+        <span class="q-sync-badge ${c.platform === "android" ? "q-sync-android" : c.synced ? "q-sync-cloud" : "q-sync-local"}">
+          ${c.platform === "android" ? "ANDROID SYNCED" : c.synced ? "SYNCED IN-CLOUD" : "QUEUED OFFLINE"}
         </span>
       </div>
     </div>`).join("");

@@ -1,10 +1,18 @@
-# TriageZero — Connectivity-Resilient Hybrid AI Disaster Medical Triage
+# TriageZero — Connectivity-Resilient Multi-Platform Hybrid AI Disaster Medical Triage
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Firebase AI Logic](https://img.shields.io/badge/Firebase_AI_Logic-Hybrid_Inference-orange.svg)](https://firebase.google.com/docs/ai-logic)
-[![BuildHybridAI 2026](https://img.shields.io/badge/Google-%23BuildHybridAI_2026-DC2626.svg)](https://buildhybridai.devpost.com/)
+[![BuildHybridAI 2026](https://img.shields.io/badge/Google-%23BuildHybridAI_2026-DC2626.svg)](https://firebasehybridaihackathon.devpost.com/)
+[![Devpost Submission](https://img.shields.io/badge/Devpost-TriageZero-003E54?style=flat&logo=devpost)](https://devpost.com/software/triagezero)
+[![Live Web Workbench](https://img.shields.io/badge/Live_Web-Vercel-000000?logo=vercel)](https://triagezero-hybrid.vercel.app/)
+[![Demo Video](https://img.shields.io/badge/Demo_Video-YouTube-FF0000?logo=youtube)](https://youtu.be/whCpTjl0DoI)
 
-**TriageZero** is an offline-first field emergency and mass-casualty medical triage workbench powered by **Firebase AI Logic Hybrid Inference** (`ONLY_ON_DEVICE` <-> `ONLY_IN_CLOUD`).
+**TriageZero** is a multi-platform (**Web (Chrome) + Native Android**) offline-first emergency and mass-casualty medical triage platform powered by **Firebase AI Logic Hybrid Inference** (`ONLY_ON_DEVICE` / `PREFER_ON_DEVICE` <-> `ONLY_IN_CLOUD`).
+
+- **Live Web ER Command Workbench (Chrome):** [https://triagezero-hybrid.vercel.app/](https://triagezero-hybrid.vercel.app/)
+- **Native Android Field EMT Companion (`/android`):** Kotlin + Jetpack Compose app using `com.google.firebase:firebase-ai` (`InferenceMode.PREFER_ON_DEVICE`) for offline field triage synced live via zero-PHI Cloud Firestore into the Web ER Command Dashboard.
+- **Devpost Submission:** [https://devpost.com/software/triagezero](https://devpost.com/software/triagezero)
+- **YouTube Demo:** [https://youtu.be/whCpTjl0DoI](https://youtu.be/whCpTjl0DoI)
 
 When earthquakes, highway pileups, or remote wilderness emergencies sever cellular networks, cloud-only AI stops working at the exact moment lives depend on it. **TriageZero** runs 100% on-device in disaster dead zones using Chrome Built-in AI (**Gemini Nano**) + a deterministic clinical **START (Simple Triage and Rapid Treatment)** RPM engine sealed into a tamper-evident **SHA-256 IndexedDB hash chain** (`0 B` cloud traffic). The instant Starlink or 5G connectivity returns, TriageZero flips its hybrid routing boundary to Firebase AI Logic **`ONLY_IN_CLOUD` (`gemini-3.5-flash-lite`)** to burst-synthesize **Multi-Casualty Hospital Surge Allocation**, automatic trauma-center diversion routing, **HL7 FHIR R4** bundles, and **Clinical SOAP** ER handoffs backed by zero-PHI Cloud Firestore dispatch receipts.
 
@@ -46,12 +54,24 @@ When earthquakes, highway pileups, or remote wilderness emergencies sever cellul
 
 ## Local Development & Verification
 
+### Web Workbench (Chrome + Firebase AI Logic)
+
 ```bash
 npm install
-npm test        # Runs 39 deterministic Vitest clinical, crypto, surge, FHIR & security tests
+npm test        # Runs 40 deterministic Vitest clinical, crypto, surge, FHIR & security tests
 npm run dev     # Launches Vite local dev server
 npm run build   # Builds production bundle into dist/
 ```
+
+### Android Field EMT Companion (`android/`)
+
+```bash
+cd android
+./gradlew testDebugUnitTest assembleDebug
+```
+
+- Built with Kotlin + Jetpack Compose + `com.google.firebase:firebase-ai` (`InferenceMode.PREFER_ON_DEVICE`, `InferenceMode.ONLY_ON_DEVICE`, `InferenceMode.ONLY_IN_CLOUD`) + `firebase-ai-ondevice` + App Check + Remote Config + Cloud Firestore live sync.
+- Field EMTs triage casualties offline on Android in disaster dead zones, then sync zero-PHI START tags (`/incidents/INC-TZ26-001/casualties/{tagId}`) live into the Chrome ER Web Workbench on reconnect.
 
 ## Firebase Setup
 

@@ -518,9 +518,18 @@ describe("6. Hardened firestore.rules Zero-PHI Enforcement & Repo Hygiene", () =
 
   it("verifies remoteconfig.template.json declares gemini-3.5-flash-lite and START clinical thresholds", () => {
     const rcPath = path.resolve(process.cwd(), "remoteconfig.template.json");
-    const json = JSON.parse(fs.readFileSync(rcPath, "utf-8"));
+    const json = JSON.parse(fs.readFileSync(rcPath, "utf8"));
     expect(json.parameters.triage_cloud_model.defaultValue.value).toBe("gemini-3.5-flash-lite");
     expect(Number(json.parameters.start_resp_rate_max.defaultValue.value)).toBe(DEFAULT_THRESHOLDS.respRateMax);
     expect(Number(json.parameters.start_cap_refill_max_sec.defaultValue.value)).toBe(DEFAULT_THRESHOLDS.capRefillMaxSec);
+  });
+
+  it("verifies firestore.rules defines zero-PHI cross-platform incident relay and README points to #BuildHybridAI", () => {
+    const rulesContent = fs.readFileSync(path.resolve(process.cwd(), "firestore.rules"), "utf-8");
+    expect(rulesContent).toContain("validFieldTag(data)");
+    expect(rulesContent).toContain("/incidents/{incidentId}/casualties/{tagId}");
+    const readme = fs.readFileSync(path.resolve(process.cwd(), "README.md"), "utf-8");
+    expect(readme).toContain("https://firebasehybridaihackathon.devpost.com/");
+    expect(readme).not.toContain("https://buildhybridai.devpost.com/");
   });
 });

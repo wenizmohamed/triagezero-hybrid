@@ -8,3 +8,9 @@ demo_build/
 *.mp3
 *.log
 .DS_Store
+gallery_*.png
+thumbnail.png
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties

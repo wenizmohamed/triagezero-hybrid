@@ -52,6 +52,42 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Cross-Platform Field-to-ER Live Relay (Android EMT <-> Chrome ER Web Workbench)
+    // Strictly zero-PHI telemetry & START vitals only (no names, no free-text notes).
+    function validFieldTag(data) {
+      return data.keys().hasOnly([
+          'id', 'ageSex', 'pediatric', 'specialtyNeed', 'category', 'priority',
+          'respRate', 'capRefillSec', 'radialPulse', 'obeysCommands',
+          'canWalk', 'breathing', 'airwayOpenedBreathing',
+          'inferenceSource', 'entryHash', 'platform', 'at'
+        ])
+        && data.id is string && data.id.matches('^[A-Z0-9-]{2,20}$')
+        && data.ageSex is string && data.ageSex.size() >= 1 && data.ageSex.size() <= 16
+        && data.pediatric is bool
+        && data.specialtyNeed is string && data.specialtyNeed.size() <= 32
+        && data.category in ['RED', 'YELLOW', 'GREEN', 'BLACK']
+        && data.priority is int && data.priority >= 1 && data.priority <= 4
+        && data.respRate is number && data.respRate >= 0 && data.respRate <= 80
+        && data.capRefillSec is number && data.capRefillSec >= 0 && data.capRefillSec <= 15
+        && data.radialPulse is bool
+        && data.obeysCommands is bool
+        && data.canWalk is bool
+        && data.breathing is bool
+        && data.airwayOpenedBreathing is bool
+        && data.inferenceSource in ['on_device', 'on-device', 'in_cloud', 'in-cloud']
+        && data.entryHash is string && data.entryHash.matches('^[a-f0-9]{64}$')
+        && data.platform in ['web', 'android']
+        && data.at == request.time;
+    }
+
+    match /incidents/{incidentId}/casualties/{tagId} {
+      allow read: if incidentId.matches('^INC-[A-Z0-9-]{4,24}$');
+      allow create, update: if incidentId.matches('^INC-[A-Z0-9-]{4,24}$')
+        && tagId.matches('^[A-Z0-9-]{2,20}$')
+        && validFieldTag(request.resource.data);
+      allow delete: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

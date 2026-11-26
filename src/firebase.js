@@ -12,12 +12,15 @@ import { getRemoteConfig, fetchAndActivate, getValue } from "firebase/remote-con
 import {
   getFirestore,
   collection,
+  doc,
+  setDoc,
   addDoc,
   serverTimestamp,
   query,
   orderBy,
   limit,
   getDocs,
+  onSnapshot,
 } from "firebase/firestore";
 import { firebaseConfig, recaptchaSiteKey } from "./firebase-config.js";
 import { TRIAGE_NANO_SCHEMA, CLOUD_SURGE_SYSTEM, DEFAULT_THRESHOLDS } from "./triage-core.js";
@@ -126,7 +129,7 @@ export function onDeviceTriageModel() {
  * cellular/Starlink connectivity returns to synthesize Multi-Casualty Hospital Surge Allocation
  * and Clinical SOAP handoff narratives.
  */
-export function cloudSurgeModel(policy, { withAppCheck = false } = {}) {
+export function cloudSurgeModel(policy, { withAppCheck = true } = {}) {
   if (withAppCheck) ensureAppCheck();
   return getGenerativeModel(ai, {
     mode: InferenceMode.ONLY_IN_CLOUD,
@@ -182,4 +185,50 @@ export async function loadDispatchReceipts(sessionId) {
     query(receiptCollection(sessionId), orderBy("at", "desc"), limit(10))
   );
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+/**
+ * Publishes a strictly zero-PHI START triage tag to the shared Cross-Platform Incident Relay
+ * so Android Field responders and Chrome ER Web dispatchers stay synchronized in real time.
+ */
+export async function publishFieldTag(incidentId, casualty) {
+  if (!incidentId || !casualty?.id) return;
+  const tagRef = doc(db, "incidents", incidentId, "casualties", casualty.id);
+  const v = casualty.vitals || {};
+  return setDoc(tagRef, {
+    id: casualty.id,
+    ageSex: String(casualty.ageSex || "Adult").slice(0, 16),
+    pediatric: Boolean(casualty.pediatric),
+    specialtyNeed: String(casualty.specialtyNeed || "general_trauma").slice(0, 32),
+    category: casualty.triage?.category || "YELLOW",
+    priority: Number(casualty.triage?.priority || 2),
+    respRate: Number(v.respRate ?? 18),
+    capRefillSec: Number(v.capRefillSec ?? 1.5),
+    radialPulse: Boolean(v.radialPulse),
+    obeysCommands: Boolean(v.obeysCommands),
+    canWalk: Boolean(v.canWalk),
+    breathing: Boolean(v.breathing),
+    airwayOpenedBreathing: Boolean(v.airwayOpenedBreathing),
+    inferenceSource: casualty.inferenceSource === "in-cloud" ? "in_cloud" : "on_device",
+    entryHash: casualty.entryHash,
+    platform: casualty.platform === "android" ? "android" : "web",
+    at: serverTimestamp(),
+  });
+}
+
+/**
+ * Subscribes live to zero-PHI field tags arriving from mobile Android responders or web units.
+ */
+export function subscribeIncidentCasualties(incidentId, onUpdate) {
+  const q = query(collection(db, "incidents", incidentId, "casualties"), orderBy("at", "desc"), limit(30));
+  return onSnapshot(
+    q,
+    (snap) => {
+      const rows = snap.docs.map((d) => d.data());
+      onUpdate(rows);
+    },
+    (err) => {
+      console.warn("Incident relay subscription standby:", err?.message || err);
+    }
+  );
 }
