@@ -34,7 +34,7 @@ const rc = getRemoteConfig(app);
 
 rc.settings.minimumFetchIntervalMillis = 10 * 60 * 1000;
 rc.defaultConfig = {
-  triage_cloud_model: "gemini-3.5-flash-lite",
+  triage_cloud_model: "gemini-4-hydrogen",
   start_resp_rate_max: DEFAULT_THRESHOLDS.respRateMax,
   start_cap_refill_max_sec: DEFAULT_THRESHOLDS.capRefillMaxSec,
   max_offline_queue: 200,
@@ -93,7 +93,7 @@ export async function loadClinicalPolicy({ online = false } = {}) {
   const respRateMax = Number(getValue(rc, "start_resp_rate_max").asNumber()) || DEFAULT_THRESHOLDS.respRateMax;
   const capRefillMaxSec = Number(getValue(rc, "start_cap_refill_max_sec").asNumber()) || DEFAULT_THRESHOLDS.capRefillMaxSec;
   return {
-    cloudModel: getValue(rc, "triage_cloud_model").asString() || "gemini-3.5-flash-lite",
+    cloudModel: getValue(rc, "triage_cloud_model").asString() || "gemini-4-hydrogen",
     thresholds: {
       respRateMax,
       capRefillMaxSec,
@@ -125,7 +125,7 @@ export function onDeviceTriageModel() {
 }
 
 /**
- * Strictly in-cloud Firebase AI Logic model (gemini-3.5-flash-lite) invoked ONLY when
+ * Strictly in-cloud Firebase AI Logic model (gemini-4-hydrogen) invoked ONLY when
  * cellular/Starlink connectivity returns to synthesize Multi-Casualty Hospital Surge Allocation
  * and Clinical SOAP handoff narratives.
  */
@@ -134,7 +134,7 @@ export function cloudSurgeModel(policy, { withAppCheck = true } = {}) {
   return getGenerativeModel(ai, {
     mode: InferenceMode.ONLY_IN_CLOUD,
     inCloudParams: {
-      model: policy?.cloudModel || "gemini-3.5-flash-lite",
+      model: policy?.cloudModel || "gemini-4-hydrogen",
       systemInstruction: CLOUD_SURGE_SYSTEM,
       generationConfig: {
         temperature: 0.2,
@@ -151,7 +151,7 @@ export function adaptiveHybridModel(policy) {
   return getGenerativeModel(ai, {
     mode: InferenceMode.PREFER_ON_DEVICE,
     inCloudParams: {
-      model: policy?.cloudModel || "gemini-3.5-flash-lite",
+      model: policy?.cloudModel || "gemini-4-hydrogen",
       systemInstruction: CLOUD_SURGE_SYSTEM,
       generationConfig: { temperature: 0.2 },
     },

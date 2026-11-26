@@ -50,7 +50,7 @@ fun TriageZeroFieldScreen(engine: FirebaseHybridTriageEngine) {
     val incidentId = "INC-TZ26-001"
 
     var isOnline by remember { mutableStateOf(false) }
-    var cloudModel by remember { mutableStateOf("gemini-3.5-flash-lite") }
+    var cloudModel by remember { mutableStateOf("gemini-4-hydrogen") }
     var thresholds by remember { mutableStateOf(ClinicalThresholds()) }
 
     var selectedPreset by remember { mutableStateOf(StartTriageEngine.PRELOADED_CASES.first()) }
@@ -255,15 +255,15 @@ fun TriageZeroFieldScreen(engine: FirebaseHybridTriageEngine) {
                                 onClick = {
                                     busy = true
                                     scope.launch {
-                                        val (_, src) = engine.evaluateFieldNoteHybrid(
+                                        val (nanoNote, src) = engine.evaluateFieldNoteHybrid(
                                             "${selectedPreset.title}: ${liveVerdict.rpmSummary}",
                                             onlineAllowed = isOnline,
                                             cloudModel = cloudModel
                                         )
                                         val updated = queue.filterNot { it.id == selectedPreset.id }
-                                        val nextRec = StartTriageEngine.appendToChain(updated, selectedPreset, currentVitals, thresholds, src)
+                                        val nextRec = StartTriageEngine.appendToChain(updated, selectedPreset, currentVitals, thresholds, src, nanoNote)
                                         queue = updated + nextRec
-                                        statusText = "Tagged ${nextRec.id} [${nextRec.verdict.category.code}] via $src · sha256:${nextRec.entryHash.take(10)}"
+                                        statusText = "Tagged ${nextRec.id} [${nextRec.verdict.category.code}] ($src): $nanoNote"
                                         busy = false
                                     }
                                 }
@@ -347,6 +347,9 @@ fun TriageZeroFieldScreen(engine: FirebaseHybridTriageEngine) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text("${rec.id} · ${rec.title} (${rec.ageSex})", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             Text(rec.verdict.rpmSummary, fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = Color(0xFF475569))
+                            if (rec.aiNote.isNotBlank()) {
+                                Text("AI Intake: ${rec.aiNote}", fontSize = 11.sp, color = Color(0xFF0F172A))
+                            }
                             Text(
                                 "sha256:${rec.entryHash.take(12)} · ${rec.inferenceSource} · ${if (rec.synced) "SYNCED" else "OFFLINE"}",
                                 fontFamily = FontFamily.Monospace,

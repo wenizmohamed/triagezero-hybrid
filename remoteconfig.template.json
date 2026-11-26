@@ -1,8 +1,8 @@
 {
   "parameters": {
     "triage_cloud_model": {
-      "defaultValue": { "value": "gemini-3.5-flash-lite" },
-      "description": "Cloud Gemini model used by Firebase AI Logic when cellular/Starlink returns for hospital surge synthesis.",
+      "defaultValue": { "value": "gemini-4-hydrogen" },
+      "description": "Cloud Gemini 4 model (Firebase AI Logic Flagship Efficiency) used when cellular/Starlink returns for hospital surge synthesis.",
       "valueType": "STRING"
     },
     "start_resp_rate_max": {

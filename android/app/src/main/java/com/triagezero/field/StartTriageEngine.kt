@@ -52,7 +52,8 @@ data class OfflineCasualtyRecord(
     val inferenceSource: String,
     val prevHash: String,
     val entryHash: String,
-    val synced: Boolean = false
+    val synced: Boolean = false,
+    val aiNote: String = ""
 )
 
 object StartTriageEngine {
@@ -214,7 +215,8 @@ object StartTriageEngine {
         preset: FieldCasePreset,
         vitals: PatientVitals,
         thresholds: ClinicalThresholds,
-        inferenceSource: String
+        inferenceSource: String,
+        aiNote: String = ""
     ): OfflineCasualtyRecord {
         val verdict = evaluate(vitals, thresholds)
         val prevHash = existing.lastOrNull()?.entryHash ?: GENESIS_HASH
@@ -240,7 +242,8 @@ object StartTriageEngine {
             inferenceSource = inferenceSource,
             prevHash = prevHash,
             entryHash = entryHash,
-            synced = false
+            synced = false,
+            aiNote = aiNote
         )
     }
 

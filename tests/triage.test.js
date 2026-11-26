@@ -9,6 +9,8 @@ import {
   REGIONAL_HOSPITALS,
   GENESIS_HASH,
   evaluateSTART,
+  normalizeNanoTriagePayload,
+  extractClinicalVitalsOffline,
   sha256Hex,
   appendToHashChain,
   verifyHashChain,
@@ -516,10 +518,10 @@ describe("6. Hardened firestore.rules Zero-PHI Enforcement & Repo Hygiene", () =
     expect(content).toContain("allow read, write: if false;");
   });
 
-  it("verifies remoteconfig.template.json declares gemini-3.5-flash-lite and START clinical thresholds", () => {
+  it("verifies remoteconfig.template.json declares gemini-4-hydrogen and START clinical thresholds", () => {
     const rcPath = path.resolve(process.cwd(), "remoteconfig.template.json");
     const json = JSON.parse(fs.readFileSync(rcPath, "utf8"));
-    expect(json.parameters.triage_cloud_model.defaultValue.value).toBe("gemini-3.5-flash-lite");
+    expect(json.parameters.triage_cloud_model.defaultValue.value).toBe("gemini-4-hydrogen");
     expect(Number(json.parameters.start_resp_rate_max.defaultValue.value)).toBe(DEFAULT_THRESHOLDS.respRateMax);
     expect(Number(json.parameters.start_cap_refill_max_sec.defaultValue.value)).toBe(DEFAULT_THRESHOLDS.capRefillMaxSec);
   });
@@ -531,5 +533,49 @@ describe("6. Hardened firestore.rules Zero-PHI Enforcement & Repo Hygiene", () =
     const readme = fs.readFileSync(path.resolve(process.cwd(), "README.md"), "utf-8");
     expect(readme).toContain("https://firebasehybridaihackathon.devpost.com/");
     expect(readme).not.toContain("https://buildhybridai.devpost.com/");
+  });
+});
+
+describe("7. On-Device Gemini Nano Schema Normalization & Offline Clinical NLP Extraction", () => {
+  it("extracts tachypneic RED crush trauma vitals from unstructured EMS presentation notes offline", () => {
+    const res = extractClinicalVitalsOffline(
+      "38M pinned under concrete lintel, respiratory rate 34/min, capillary refill 3.5s, absent radial pulse, alert"
+    );
+    expect(res.canWalk).toBe(false);
+    expect(res.breathing).toBe(true);
+    expect(res.respRate).toBe(34);
+    expect(res.capRefillSec).toBe(3.5);
+    expect(res.radialPulse).toBe(false);
+    expect(res.specialtyNeed).toBe("crush_trauma");
+    expect(evaluateSTART(res).category).toBe("RED");
+  });
+
+  it("extracts walking wounded GREEN and pediatric RED trauma cues cleanly offline", () => {
+    const green = extractClinicalVitalsOffline("27M walked independently to muster zone, superficial laceration, RR 18/min");
+    expect(green.canWalk).toBe(true);
+    expect(evaluateSTART(green).category).toBe("GREEN");
+
+    const ped = extractClinicalVitalsOffline("9F pediatric trauma, withdraws to pain only, RR 28/min, cap refill 2.0s");
+    expect(ped.pediatric).toBe(true);
+    expect(ped.obeysCommands).toBe(false);
+    expect(ped.specialtyNeed).toBe("pediatric_trauma");
+    expect(evaluateSTART(ped).category).toBe("RED");
+  });
+
+  it("bounds malformed Gemini Nano schema JSON fields safely via normalizeNanoTriagePayload", () => {
+    const normalized = normalizeNanoTriagePayload({
+      canWalk: false,
+      breathing: true,
+      respRate: 140,
+      capRefillSec: 9.8,
+      radialPulse: true,
+      obeysCommands: false,
+      specialtyNeed: "invalid_type",
+      clinicalSummary: "Airway priority",
+    });
+    expect(normalized.respRate).toBe(50);
+    expect(normalized.capRefillSec).toBe(5.0);
+    expect(normalized.specialtyNeed).toBe("general_trauma");
+    expect(normalized.clinicalSummary).toBe("Airway priority");
   });
 });

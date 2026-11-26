@@ -7,6 +7,8 @@ import {
   REGIONAL_HOSPITALS,
   PROTOCOL_VERSION,
   evaluateSTART,
+  normalizeNanoTriagePayload,
+  extractClinicalVitalsOffline,
   appendToHashChain,
   verifyHashChain,
   HybridConnectivityRouter,
@@ -43,7 +45,7 @@ const state = {
   activePresetId: PRELOADED_CASES[0].id,
   incidentId: "INC-TZ26-001",
   policy: {
-    cloudModel: "gemini-3.5-flash-lite",
+    cloudModel: "gemini-4-hydrogen",
     thresholds: { ...DEFAULT_THRESHOLDS },
     maxOfflineQueue: 200,
     preferOnDeviceIntake: true,
@@ -53,6 +55,7 @@ const state = {
   allocation: null,
   cloudBrief: "",
   cloudBriefSource: "STANDBY (OFFLINE)",
+  lastNanoNote: "",
   lastLatencyMs: 1.4,
   customCounter: 7,
   hasChromeNano: typeof self !== "undefined" && typeof self.LanguageModel !== "undefined",
@@ -147,6 +150,7 @@ function readCurrentForm() {
 
 function loadCaseIntoForm(c) {
   state.activePresetId = c.id;
+  state.lastNanoNote = "";
   $("#inputTagId").value = c.id;
   $("#inputAgeSex").value = c.ageSex;
   $("#inputSpecialty").value = c.specialtyNeed || "crush_trauma";
@@ -429,41 +433,99 @@ function updateLiveTriagePreview() {
   $("#verdictInterventions").innerHTML = triage.interventions
     .map((item) => `<span class="intervention-chip">${esc(item)}</span>`)
     .join("");
+  $("#verdictNanoNote").textContent = state.lastNanoNote
+    ? `On-Device Extractor: ${state.lastNanoNote}`
+    : `On-Device Schema Ready (0 B cloud) · Click "AI Parse Note (On-Device)" to extract structured vitals from narrative.`;
   $("#liveRpmChip").textContent = triage.rpmSummary;
 
   renderStartTreeSvg(triage);
   $("#kpiLatencyVal").textContent = `${elapsed} ms`;
 }
 
-// --- Tag & Append Casualty Locally (Strictly ONLY_ON_DEVICE -> 0 Cloud Bytes) ---
-async function tagCurrentCasualtyLocally({ silent = false } = {}) {
-  const t0 = performance.now();
-  const form = readCurrentForm();
-  let inferenceSource = "on-device";
+function applyExtractedVitalsToForm(extracted) {
+  $("#chkCanWalk").checked = Boolean(extracted.canWalk);
+  $("#chkBreathing").checked = Boolean(extracted.breathing);
+  $("#chkAirwayOpened").checked = Boolean(extracted.airwayOpenedBreathing);
+  $("#chkRadialPulse").checked = Boolean(extracted.radialPulse);
+  $("#chkObeysCommands").checked = Boolean(extracted.obeysCommands);
+  $("#chkPediatric").checked = Boolean(extracted.pediatric);
+  $("#sliderRR").value = String(extracted.respRate);
+  $("#sliderCapRefill").value = String(extracted.capRefillSec);
+  if (extracted.specialtyNeed && $("#inputSpecialty")?.querySelector(`option[value="${extracted.specialtyNeed}"]`)) {
+    $("#inputSpecialty").value = extracted.specialtyNeed;
+  }
+  state.lastNanoNote = extracted.clinicalSummary || "";
+  updateLiveTriagePreview();
+}
 
-  // Attempt Chrome Built-in AI Gemini Nano via Firebase AI Logic ONLY_ON_DEVICE if downloaded & available
+async function runOnDeviceNarrativeExtraction({ applyToForm = true, silent = false } = {}) {
+  const t0 = performance.now();
+  const narrative = ($("#inputMechanism").value || "").trim() || PRELOADED_CASES[0].mechanism;
+  let extracted = null;
+  let engineUsed = "Offline START NLP Schema";
+
   if (state.hasChromeNano && typeof self.LanguageModel?.availability === "function") {
     try {
       const avail = await self.LanguageModel.availability();
       if (avail === "available" || avail === "readily") {
         const model = onDeviceTriageModel();
-        const prompt = `Extract START triage vitals summary for: ${form.mechanism} (RR ${form.vitals.respRate}, cap refill ${form.vitals.capRefillSec}s)`;
+        const prompt = `Extract exact START triage fields (canWalk, breathing, airwayOpenedBreathing, respRate, capRefillSec, radialPulse, obeysCommands, pediatric, specialtyNeed, clinicalSummary) from EMS field note:\n"${narrative}"`;
         const res = await model.generateContent(prompt);
-        if (res?.response?.inferenceSource === InferenceSource.ON_DEVICE) {
-          inferenceSource = "on-device";
+        const rawText = res?.response?.text?.() || "";
+        if (rawText) {
+          extracted = normalizeNanoTriagePayload(JSON.parse(rawText), narrative);
+          if (res?.response?.inferenceSource === InferenceSource.ON_DEVICE) {
+            engineUsed = "Chrome Gemini Nano (ONLY_ON_DEVICE JSON)";
+          }
         }
       }
     } catch {
-      // Deterministic START RPM engine completes seamlessly on-device with zero cloud fallback
-      inferenceSource = "on-device";
+      extracted = null;
     }
   }
+
+  if (!extracted) {
+    extracted = extractClinicalVitalsOffline(narrative);
+  }
+
+  const latencyMs = Math.max(1, Math.round(performance.now() - t0));
+  if (applyToForm) {
+    applyExtractedVitalsToForm(extracted);
+  } else {
+    state.lastNanoNote = extracted.clinicalSummary;
+  }
+
+  router.recordEvent({
+    step: `On-Device Clinical Intake (${engineUsed})`,
+    firebaseMode: "ONLY_ON_DEVICE",
+    inferenceSource: "on-device",
+    latencyMs,
+    cloudBytes: 0,
+    tokensSaved: 280,
+    note: `${extracted.clinicalSummary} · 0 B cloud`,
+  });
+  renderAuditTab();
+  renderHeaderAndKpis();
+
+  if (!silent) {
+    $("#intakeToast").textContent = `${engineUsed}: ${extracted.clinicalSummary} (0 B cloud · ${latencyMs} ms)`;
+  }
+  return { extracted, engineUsed, latencyMs };
+}
+
+// --- Tag & Append Casualty Locally (Strictly ONLY_ON_DEVICE -> 0 Cloud Bytes) ---
+async function tagCurrentCasualtyLocally({ silent = false } = {}) {
+  const t0 = performance.now();
+  const { extracted, engineUsed } = await runOnDeviceNarrativeExtraction({ applyToForm: false, silent: true });
+  const form = readCurrentForm();
+  const inferenceSource = "on-device";
 
   const triage = evaluateSTART(form.vitals, state.policy.thresholds);
   const latencyMs = Math.max(1, Math.round(performance.now() - t0));
 
   const record = appendToHashChain(state.queue, {
     ...form,
+    aiSummary: extracted.clinicalSummary,
     triage,
     taggedAt: new Date().toISOString(),
     inferenceSource,
@@ -550,9 +612,10 @@ async function runSixCasualtyMassIncident() {
     note: "All 6 casualties triaged offline (3 RED, 1 YELLOW, 1 GREEN, 1 BLACK) · 0 B sent to cloud.",
   });
 
-  // Phase 2: Restore Connectivity (Starlink / 5G) and execute ONLY_IN_CLOUD Surge Burst
+  // Phase 2: Restore Connectivity (Starlink / 5G), refresh Remote Config & execute ONLY_IN_CLOUD Surge Burst
   router.setConnectivity(true);
   startIncidentRelaySubscription();
+  state.policy = await loadClinicalPolicy({ online: true });
   await executeCloudSurgeBurst({ autoSwitchTab: true });
 }
 
@@ -873,6 +936,9 @@ function renderSurgeTab() {
   const badge = $("#cloudSourceBadge");
   badge.textContent = router.online && state.cloudBrief ? state.cloudBriefSource : "STANDBY (OFFLINE)";
   badge.classList.toggle("cloud-live", router.online && Boolean(state.cloudBrief));
+  if ($("#cloudBriefMeta")) {
+    $("#cloudBriefMeta").textContent = `Firebase AI Logic · ONLY_IN_CLOUD · ${state.policy.cloudModel}`;
+  }
 
   $("#cloudBriefContent").textContent =
     state.cloudBrief ||
@@ -1060,6 +1126,7 @@ async function boot() {
     $("#intakeToast").textContent = `Prepared custom tag ${nextId} — adjust vitals and click Tag & Queue Locally.`;
   });
 
+  $("#btnNanoExtract").addEventListener("click", () => runOnDeviceNarrativeExtraction({ applyToForm: true }));
   $("#btnVoiceIntake").addEventListener("click", handleVoiceQuickIntake);
 
   // Live vital slider & toggle listeners

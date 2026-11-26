@@ -57,7 +57,7 @@ class FirebaseHybridTriageEngine(context: Context) {
         )
         rc.setDefaultsAsync(
             mapOf(
-                "triage_cloud_model" to "gemini-3.5-flash-lite",
+                "triage_cloud_model" to "gemini-4-hydrogen",
                 "start_resp_rate_max" to 30L,
                 "start_cap_refill_max_sec" to 2.0,
                 "max_offline_queue" to 200L,
@@ -70,7 +70,7 @@ class FirebaseHybridTriageEngine(context: Context) {
         ensureInitialized()
         val rc = Firebase.remoteConfig
         runCatching { withTimeout(3500) { rc.fetchAndActivate().await() } }
-        val cloudModel = rc.getString("triage_cloud_model").ifBlank { "gemini-3.5-flash-lite" }
+        val cloudModel = rc.getString("triage_cloud_model").ifBlank { "gemini-4-hydrogen" }
         val rrMax = rc.getLong("start_resp_rate_max").toInt().takeIf { it > 0 } ?: 30
         val capMax = rc.getDouble("start_cap_refill_max_sec").takeIf { it > 0.0 } ?: 2.0
         return cloudModel to ClinicalThresholds(respRateMax = rrMax, capRefillMaxSec = capMax)

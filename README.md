@@ -14,7 +14,7 @@
 - **Devpost Submission:** [https://devpost.com/software/triagezero](https://devpost.com/software/triagezero)
 - **YouTube Demo:** [https://youtu.be/6m94TguioXw](https://youtu.be/6m94TguioXw)
 
-When earthquakes, highway pileups, or remote wilderness emergencies sever cellular networks, cloud-only AI stops working at the exact moment lives depend on it. **TriageZero** runs 100% on-device in disaster dead zones using Chrome Built-in AI (**Gemini Nano**) + a deterministic clinical **START (Simple Triage and Rapid Treatment)** RPM engine sealed into a tamper-evident **SHA-256 IndexedDB hash chain** (`0 B` cloud traffic). The instant Starlink or 5G connectivity returns, TriageZero flips its hybrid routing boundary to Firebase AI Logic **`ONLY_IN_CLOUD` (`gemini-3.5-flash-lite`)** to burst-synthesize **Multi-Casualty Hospital Surge Allocation**, automatic trauma-center diversion routing, **HL7 FHIR R4** bundles, and **Clinical SOAP** ER handoffs backed by zero-PHI Cloud Firestore dispatch receipts.
+When earthquakes, highway pileups, or remote wilderness emergencies sever cellular networks, cloud-only AI stops working at the exact moment lives depend on it. **TriageZero** runs 100% on-device in disaster dead zones using Chrome Built-in AI (**Gemini Nano** structured JSON vitals extraction) + a deterministic clinical **START (Simple Triage and Rapid Treatment)** RPM engine sealed into a tamper-evident **SHA-256 IndexedDB hash chain** (`0 B` cloud traffic). The instant Starlink or 5G connectivity returns, TriageZero flips its hybrid routing boundary to Firebase AI Logic **`ONLY_IN_CLOUD` (`gemini-4-hydrogen`)** to burst-synthesize **Multi-Casualty Hospital Surge Allocation**, automatic trauma-center diversion routing, **HL7 FHIR R4** bundles, and **Clinical SOAP** ER handoffs backed by zero-PHI Cloud Firestore dispatch receipts.
 
 ---
 
@@ -34,7 +34,7 @@ When earthquakes, highway pileups, or remote wilderness emergencies sever cellul
                                 │
 ┌───────────────────────────────▼─────────────────────────────────────────┐
 │                 CONNECTIVITY RESTORED (CLOUD SURGE)                     │
-│  Firebase AI Logic · InferenceMode.ONLY_IN_CLOUD (gemini-3.5-flash-lite)│
+│  Firebase AI Logic · InferenceMode.ONLY_IN_CLOUD (gemini-4-hydrogen)    │
 │  + Lazy App Check (reCAPTCHA Enterprise) + Firebase Remote Config       │
 │  -> Multi-Casualty Hospital Surge & Trauma Diversion Routing            │
 │  -> HL7 FHIR R4 Collection Bundle (.json) + Clinical SOAP Handoff (.md) │
@@ -76,7 +76,7 @@ cd android
 ## Firebase Setup
 
 - `src/firebase.js` uses `firebase/ai` (`getAI`, `getGenerativeModel`, `GoogleAIBackend`, `InferenceMode.ONLY_ON_DEVICE`, `InferenceMode.ONLY_IN_CLOUD`, `InferenceMode.PREFER_ON_DEVICE`), lazy `initializeAppCheck` (zero boot-time beacons), `firebase/remote-config`, and `firebase/firestore`.
-- `remoteconfig.template.json` defines live cloud model selection (`gemini-3.5-flash-lite`) and START protocol thresholds (`start_resp_rate_max`, `start_cap_refill_max_sec`).
+- `remoteconfig.template.json` defines live cloud model selection (`gemini-4-hydrogen`) and START protocol thresholds (`start_resp_rate_max`, `start_cap_refill_max_sec`).
 - `firestore.rules` enforces append-only, zero-PHI aggregate dispatch receipts.
 
 ## License

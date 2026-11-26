@@ -1,7 +1,7 @@
 {
   "name": "triagezero-hybrid",
   "version": "1.0.0",
-  "description": "TriageZero — Offline-First Field Emergency & Disaster Medical Triage Workbench powered by Firebase AI Logic Hybrid Inference (Gemini Nano on-device + Gemini 3.5 Flash-Lite cloud surge).",
+  "description": "TriageZero — Offline-First Field Emergency & Disaster Medical Triage Workbench powered by Firebase AI Logic Hybrid Inference (Gemini Nano on-device + Gemini 4 Hydrogen cloud surge).",
   "type": "module",
   "scripts": {
     "dev": "vite",
