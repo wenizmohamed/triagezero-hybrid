@@ -5,14 +5,14 @@
 [![BuildHybridAI 2026](https://img.shields.io/badge/Google-%23BuildHybridAI_2026-DC2626.svg)](https://firebasehybridaihackathon.devpost.com/)
 [![Devpost Submission](https://img.shields.io/badge/Devpost-TriageZero-003E54?style=flat&logo=devpost)](https://devpost.com/software/triagezero)
 [![Live Web Workbench](https://img.shields.io/badge/Live_Web-Vercel-000000?logo=vercel)](https://triagezero-hybrid.vercel.app/)
-[![Demo Video](https://img.shields.io/badge/Demo_Video-YouTube-FF0000?logo=youtube)](https://youtu.be/whCpTjl0DoI)
+[![Demo Video](https://img.shields.io/badge/Demo_Video-YouTube-FF0000?logo=youtube)](https://youtu.be/6m94TguioXw)
 
 **TriageZero** is a multi-platform (**Web (Chrome) + Native Android**) offline-first emergency and mass-casualty medical triage platform powered by **Firebase AI Logic Hybrid Inference** (`ONLY_ON_DEVICE` / `PREFER_ON_DEVICE` <-> `ONLY_IN_CLOUD`).
 
 - **Live Web ER Command Workbench (Chrome):** [https://triagezero-hybrid.vercel.app/](https://triagezero-hybrid.vercel.app/)
 - **Native Android Field EMT Companion (`/android`):** Kotlin + Jetpack Compose app using `com.google.firebase:firebase-ai` (`InferenceMode.PREFER_ON_DEVICE`) for offline field triage synced live via zero-PHI Cloud Firestore into the Web ER Command Dashboard.
 - **Devpost Submission:** [https://devpost.com/software/triagezero](https://devpost.com/software/triagezero)
-- **YouTube Demo:** [https://youtu.be/whCpTjl0DoI](https://youtu.be/whCpTjl0DoI)
+- **YouTube Demo:** [https://youtu.be/6m94TguioXw](https://youtu.be/6m94TguioXw)
 
 When earthquakes, highway pileups, or remote wilderness emergencies sever cellular networks, cloud-only AI stops working at the exact moment lives depend on it. **TriageZero** runs 100% on-device in disaster dead zones using Chrome Built-in AI (**Gemini Nano**) + a deterministic clinical **START (Simple Triage and Rapid Treatment)** RPM engine sealed into a tamper-evident **SHA-256 IndexedDB hash chain** (`0 B` cloud traffic). The instant Starlink or 5G connectivity returns, TriageZero flips its hybrid routing boundary to Firebase AI Logic **`ONLY_IN_CLOUD` (`gemini-3.5-flash-lite`)** to burst-synthesize **Multi-Casualty Hospital Surge Allocation**, automatic trauma-center diversion routing, **HL7 FHIR R4** bundles, and **Clinical SOAP** ER handoffs backed by zero-PHI Cloud Firestore dispatch receipts.
 
